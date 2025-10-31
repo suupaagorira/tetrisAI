@@ -43,6 +43,24 @@
           </div>
         </section>
       </main>
+      <section class="train-panel">
+        <header class="train-panel__header">
+          <h2>TRAINING</h2>
+          <button id="btn-train-toggle" type="button">トレーニング開始</button>
+          <span id="train-status-label">停止中</span>
+        </header>
+        <div class="train-panel__body">
+          <canvas id="train-preview" width="160" height="240"></canvas>
+          <div class="train-panel__stats">
+            <div>バッチ #<span id="train-cycle">0</span></div>
+            <div>平均スコア <span id="train-average-score">0</span></div>
+            <div>平均ライン <span id="train-average-lines">0</span></div>
+            <div>最高スコア <span id="train-best-score">0</span></div>
+            <div>更新 <span id="train-updated-at">-</span></div>
+            <div class="train-panel__note" id="train-message"></div>
+          </div>
+        </div>
+      </section>
       <footer class="controls">
         <h2>操作</h2>
         <ul>

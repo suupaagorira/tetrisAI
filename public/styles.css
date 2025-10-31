@@ -178,6 +178,68 @@ canvas {
   color: rgba(255, 255, 255, 0.4);
 }
 
+.train-panel {
+  background: rgba(9, 11, 18, 0.9);
+  border: 1px solid rgba(95, 217, 255, 0.08);
+  border-radius: 12px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.train-panel__header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.train-panel__header h2 {
+  margin: 0;
+  font-size: 16px;
+  letter-spacing: 0.12em;
+}
+
+.train-panel__header button {
+  font-size: 13px;
+  padding: 6px 14px;
+}
+
+.train-panel__header span {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.train-panel__body {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.train-panel__stats {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.train-panel__stats span {
+  color: var(--color-accent);
+}
+
+.train-panel__note {
+  color: #ff9f1c;
+  font-size: 12px;
+}
+
+.train-panel canvas {
+  background: rgba(6, 8, 14, 0.95);
+  border-radius: 8px;
+  border: 1px solid rgba(95, 217, 255, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
 .controls {
   background: rgba(13, 15, 23, 0.85);
   border: 1px solid rgba(95, 217, 255, 0.08);

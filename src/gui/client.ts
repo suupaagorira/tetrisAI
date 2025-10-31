@@ -46,6 +46,22 @@ const LEVEL_GRAVITY_MS: number[] = [
   1000, 793, 618, 473, 355, 262, 190, 135, 94, 64, 43, 28, 18, 11, 7, 5, 4, 3, 2, 1.5,
 ];
 
+const TRAIN_STATUS_POLL_INTERVAL = 1500;
+const PREVIEW_BACKGROUND = 'rgba(8, 10, 18, 0.95)';
+const PREVIEW_GRID_COLOR = 'rgba(255, 255, 255, 0.08)';
+
+interface TrainingStatusDto {
+  running: boolean;
+  cycle: number;
+  batchSize: number;
+  averageScore: number;
+  averageLines: number;
+  bestScore: number;
+  previewBoard: number[][];
+  updatedAt: string | null;
+  message?: string;
+}
+
 function gravityInterval(level: number): number {
   if (level < 1) {
     return LEVEL_GRAVITY_MS[0]!;
@@ -215,6 +231,74 @@ function simplePlan(
   }
   plan.push('hard-drop');
   return plan;
+}
+
+function renderPreviewBoard(canvas: HTMLCanvasElement, board: number[][]): void {
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    return;
+  }
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = PREVIEW_BACKGROUND;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const rows = board.length;
+  const cols = rows > 0 ? board[0]?.length ?? BOARD_COLUMNS : BOARD_COLUMNS;
+  if (rows === 0 || cols === 0) {
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.12)';
+    ctx.font = '12px "Share Tech Mono", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('NO DATA', canvas.width / 2, canvas.height / 2);
+    return;
+  }
+  const cellSize = Math.max(
+    8,
+    Math.floor(Math.min(canvas.width / cols, canvas.height / rows)),
+  );
+  const offsetX = Math.floor((canvas.width - cellSize * cols) / 2);
+  const offsetY = Math.floor((canvas.height - cellSize * rows) / 2);
+
+  for (let y = 0; y < rows; y += 1) {
+    const row = board[y];
+    if (!row) {
+      continue;
+    }
+    for (let x = 0; x < cols; x += 1) {
+      const value = row[x] ?? 0;
+      if (value <= 0) {
+        continue;
+      }
+      const type = VALUE_TO_TYPE[value];
+      const color = type ? PIECE_COLORS[type] : { fill: '#c5d1ff', stroke: '#97a3c7' };
+      const drawX = offsetX + x * cellSize;
+      const drawY = offsetY + y * cellSize;
+      const gradient = ctx.createLinearGradient(drawX, drawY, drawX, drawY + cellSize);
+      gradient.addColorStop(0, color.fill);
+      gradient.addColorStop(1, `${color.fill}dd`);
+      ctx.fillStyle = gradient;
+      ctx.fillRect(drawX, drawY, cellSize, cellSize);
+      ctx.strokeStyle = `${color.stroke}cc`;
+      ctx.lineWidth = 1;
+      ctx.strokeRect(drawX + 0.5, drawY + 0.5, cellSize - 1, cellSize - 1);
+    }
+  }
+
+  ctx.strokeStyle = PREVIEW_GRID_COLOR;
+  ctx.lineWidth = 1;
+  for (let x = 0; x <= cols; x += 1) {
+    const posX = offsetX + x * cellSize + 0.5;
+    ctx.beginPath();
+    ctx.moveTo(posX, offsetY);
+    ctx.lineTo(posX, offsetY + rows * cellSize);
+    ctx.stroke();
+  }
+  for (let y = 0; y <= rows; y += 1) {
+    const posY = offsetY + y * cellSize + 0.5;
+    ctx.beginPath();
+    ctx.moveTo(offsetX, posY);
+    ctx.lineTo(offsetX + cols * cellSize, posY);
+    ctx.stroke();
+  }
 }
 
 class GameRenderer {
@@ -504,12 +588,138 @@ class StatDisplay {
   }
 }
 
+class TrainingPanel {
+  private readonly toggleButton = document.getElementById('btn-train-toggle') as HTMLButtonElement | null;
+
+  private readonly statusLabel = document.getElementById('train-status-label');
+
+  private readonly cycleEl = document.getElementById('train-cycle');
+
+  private readonly avgScoreEl = document.getElementById('train-average-score');
+
+  private readonly avgLinesEl = document.getElementById('train-average-lines');
+
+  private readonly bestScoreEl = document.getElementById('train-best-score');
+
+  private readonly updatedAtEl = document.getElementById('train-updated-at');
+
+  private readonly messageEl = document.getElementById('train-message');
+
+  private readonly previewCanvas = document.getElementById('train-preview') as HTMLCanvasElement | null;
+
+  private pollingId: number | null = null;
+
+  private running = false;
+
+  constructor() {
+    this.toggleButton?.addEventListener('click', () => {
+      void this.toggle();
+    });
+    void this.fetchStatus();
+    this.startPolling();
+  }
+
+  refreshStatus(): void {
+    void this.fetchStatus();
+  }
+
+  private startPolling(): void {
+    if (this.pollingId !== null) {
+      return;
+    }
+    this.pollingId = window.setInterval(() => {
+      void this.fetchStatus();
+    }, TRAIN_STATUS_POLL_INTERVAL);
+  }
+
+  private async fetchStatus(): Promise<void> {
+    try {
+      const response = await fetch('/api/train/status');
+      if (!response.ok) {
+        throw new Error(`Status HTTP ${response.status}`);
+      }
+      const data = (await response.json()) as TrainingStatusDto;
+      this.applyStatus(data);
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('Failed to load training status', error);
+      if (this.messageEl) {
+        this.messageEl.textContent = 'ステータス取得に失敗しました';
+      }
+    }
+  }
+
+  private applyStatus(status: TrainingStatusDto): void {
+    this.running = status.running;
+    if (this.toggleButton) {
+      this.toggleButton.textContent = status.running ? 'トレーニング停止' : 'トレーニング開始';
+    }
+    if (this.statusLabel) {
+      this.statusLabel.textContent = status.running ? '進行中' : '停止中';
+      this.statusLabel.style.color = status.running ? '#5fd9ff' : 'rgba(255,255,255,0.6)';
+    }
+    if (this.cycleEl) {
+      this.cycleEl.textContent = status.cycle.toString();
+    }
+    if (this.avgScoreEl) {
+      this.avgScoreEl.textContent = status.averageScore.toFixed(1);
+    }
+    if (this.avgLinesEl) {
+      this.avgLinesEl.textContent = status.averageLines.toFixed(1);
+    }
+    if (this.bestScoreEl) {
+      this.bestScoreEl.textContent = status.bestScore.toFixed(1);
+    }
+    if (this.updatedAtEl) {
+      this.updatedAtEl.textContent = status.updatedAt
+        ? new Date(status.updatedAt).toLocaleTimeString()
+        : '-';
+    }
+    if (this.messageEl) {
+      this.messageEl.textContent = status.message ?? '';
+    }
+    if (this.previewCanvas) {
+      renderPreviewBoard(this.previewCanvas, status.previewBoard ?? []);
+    }
+  }
+
+  private async toggle(): Promise<void> {
+    const endpoint = this.running ? '/api/train/stop' : '/api/train/start';
+    try {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      if (!response.ok) {
+        throw new Error(`Toggle HTTP ${response.status}`);
+      }
+      // Response includes latest status
+      const data = (await response.json()) as { status?: TrainingStatusDto };
+      if (data.status) {
+        this.applyStatus(data.status);
+      } else {
+        await this.fetchStatus();
+      }
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('Failed to toggle training', error);
+      if (this.messageEl) {
+        this.messageEl.textContent = 'トレーニング制御に失敗しました';
+      }
+    }
+  }
+}
+
 class GameApp {
   private game: TetrisGame;
 
   private readonly renderer: GameRenderer;
 
   private readonly statDisplay = new StatDisplay();
+
+  private readonly trainingPanel = new TrainingPanel();
 
   private readonly agentOptions: AgentOptions;
 
