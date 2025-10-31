@@ -26,6 +26,8 @@ export const DEFAULT_WEIGHTS: Record<string, number> = {
   surface_roughness: -0.25,
   drop_distance: -0.05,
   score_gain: 0.1,
+  perfect_clear: 5.0,
+  wasted_placement: -0.5,
 };
 
 export class LinearEvaluator {

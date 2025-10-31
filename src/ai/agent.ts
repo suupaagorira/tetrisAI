@@ -216,14 +216,29 @@ function simulateCandidate(
   internal.active = piece;
   internal.lastAction = tspinInfo.isTSpin ? 'rotate' : 'hardDrop';
   internal.lastKick = [0, 0];
-  if (
-    candidate.dropDistance > 0 &&
-    internal.statsValue &&
-    typeof internal.statsValue.score === 'number'
-  ) {
-    internal.statsValue.score += candidate.dropDistance * 2;
+
+  let clear: ClearResult | null;
+  if (tspinInfo.isTSpin) {
+    // Soft drop simulation
+    if (
+      candidate.dropDistance > 0 &&
+      internal.statsValue &&
+      typeof internal.statsValue.score === 'number'
+    ) {
+      internal.statsValue.score += candidate.dropDistance; // Soft drop score
+    }
+    clear = internal.lockActive();
+  } else {
+    // Hard drop simulation (original logic)
+    if (
+      candidate.dropDistance > 0 &&
+      internal.statsValue &&
+      typeof internal.statsValue.score === 'number'
+    ) {
+      internal.statsValue.score += candidate.dropDistance * 2; // Hard drop score
+    }
+    clear = internal.lockActive();
   }
-  const clear = internal.lockActive();
   if (!clear) {
     return null;
   }

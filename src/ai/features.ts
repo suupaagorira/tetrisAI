@@ -48,6 +48,10 @@ export function computeFeatures(
     surface_roughness: surfaceRoughness / (board.width || 1),
     drop_distance: dropDistance / (visibleRows.length || 1),
     score_gain: clear.scoreGained / 1000,
+    perfect_clear: board.cells.every((row) => row.every((cell) => cell === 0))
+      ? 1
+      : 0,
+    wasted_placement: clear.linesCleared === 0 ? 1 : 0,
   };
 
   return { values };

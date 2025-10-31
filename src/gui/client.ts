@@ -1,10 +1,10 @@
 /* eslint-disable no-console */
+import { PatternInferenceAgent, type AgentOptions, type SimulationOutcome } from '../ai/agent';
+import { DEFAULT_WEIGHTS, LinearEvaluator } from '../ai/evaluator';
 import { MatrixBoard } from '../core/board';
 import { TetrisGame } from '../core/game';
-import { getAbsoluteCells, PIECE_SHAPES, SRS_KICKS, rotate } from '../core/pieces';
+import { getAbsoluteCells, PIECE_SHAPES, rotate, SRS_KICKS } from '../core/pieces';
 import { Piece, PieceType, Rotation } from '../core/types';
-import { PatternInferenceAgent, type SimulationOutcome, type AgentOptions } from '../ai/agent';
-import { LinearEvaluator, DEFAULT_WEIGHTS } from '../ai/evaluator';
 
 type AutoAction =
   | 'hold'
@@ -161,6 +161,70 @@ function generateNeighbors(
   return neighbors;
 }
 
+function detectTSpinPotential(
+  board: MatrixBoard,
+  piece: Piece,
+): { isTSpin: boolean; isMini: boolean } {
+  if (piece.type !== 'T') {
+    return { isTSpin: false, isMini: false };
+  }
+  const tempBoard = board.clone();
+  const cells = getAbsoluteCells(piece.type, piece.rotation, piece.position);
+  const insideCells = cells.filter((cell) => cell.y >= 0);
+  if (insideCells.length === 0) {
+    return { isTSpin: false, isMini: false };
+  }
+  for (const cell of insideCells) {
+    if (tempBoard.isInside(cell.x, cell.y)) {
+      tempBoard.set(cell.x, cell.y, 8);
+    }
+  }
+  const center = {
+    x: piece.position.x + 1,
+    y: piece.position.y + 1,
+  };
+  const corners = [
+    { x: center.x - 1, y: center.y - 1 },
+    { x: center.x + 1, y: center.y - 1 },
+    { x: center.x - 1, y: center.y + 1 },
+    { x: center.x + 1, y: center.y + 1 },
+  ];
+  let occupied = 0;
+  for (const corner of corners) {
+    if (tempBoard.isOccupied(corner.x, corner.y)) {
+      occupied += 1;
+    }
+  }
+  if (occupied < 3) {
+    return { isTSpin: false, isMini: false };
+  }
+  const frontCorners: Record<Rotation, [number, number][]> = {
+    0: [
+      [center.x - 1, center.y + 1],
+      [center.x + 1, center.y + 1],
+    ],
+    1: [
+      [center.x - 1, center.y - 1],
+      [center.x - 1, center.y + 1],
+    ],
+    2: [
+      [center.x - 1, center.y - 1],
+      [center.x + 1, center.y - 1],
+    ],
+    3: [
+      [center.x + 1, center.y - 1],
+      [center.x + 1, center.y + 1],
+    ],
+  };
+  const front = frontCorners[piece.rotation];
+  const frontOccupied = front.reduce(
+    (sum, [x, y]) => sum + (tempBoard.isOccupied(x, y) ? 1 : 0),
+    0,
+  );
+  const isMini = frontOccupied < 2;
+  return { isTSpin: true, isMini };
+}
+
 function planPathToTarget(
   board: MatrixBoard,
   type: PieceType,
@@ -168,6 +232,7 @@ function planPathToTarget(
   targetX: number,
   targetRotation: Rotation,
   targetY: number,
+  dropAction: AutoAction,
 ): AutoAction[] | null {
   const queue: Array<{ state: PieceState; actions: AutoAction[] }> = [
     { state: start, actions: [] },
@@ -182,7 +247,16 @@ function planPathToTarget(
     iterations += 1;
 
     if (node.state.rotation === targetRotation && node.state.x === targetX) {
-      return [...node.actions, 'hard-drop'];
+      const plan = [...node.actions];
+      if (dropAction === 'soft-drop') {
+        const dropCount = targetY - node.state.y;
+        for (let i = 0; i < dropCount; i++) {
+          plan.push('soft-drop');
+        }
+      } else {
+        plan.push('hard-drop');
+      }
+      return plan;
     }
 
     for (const neighbor of generateNeighbors(board, type, node.state)) {
@@ -221,6 +295,7 @@ function simplePlan(
   current: PieceState,
   targetX: number,
   targetRotation: Rotation,
+  dropAction: AutoAction,
 ): AutoAction[] {
   const plan: AutoAction[] = [];
   plan.push(...rotationActions(current.rotation, targetRotation));
@@ -229,7 +304,7 @@ function simplePlan(
   for (let i = 0; i < Math.abs(deltaX); i += 1) {
     plan.push(moveAction);
   }
-  plan.push('hard-drop');
+  plan.push(dropAction);
   return plan;
 }
 
@@ -453,8 +528,8 @@ class GameRenderer {
     ctx.strokeStyle = isActive
       ? stroke
       : `${stroke}${Math.floor(LOCKED_STROKE_ALPHA * 255)
-          .toString(16)
-          .padStart(2, '0')}`;
+        .toString(16)
+        .padStart(2, '0')}`;
     ctx.lineWidth = isActive ? 2 : 1;
     ctx.strokeRect(x + 0.5, y + 0.5, cellSize - 1, cellSize - 1);
   }
@@ -957,7 +1032,13 @@ class GameApp {
         break;
     }
     this.resetSuggestionTimer();
-    this.autoCooldown = action === 'hard-drop' ? 90 : 70;
+    if (action === 'hard-drop') {
+      this.autoCooldown = 90;
+    } else if (action === 'soft-drop') {
+      this.autoCooldown = 70;
+    } else {
+      this.autoCooldown = 0;
+    }
     if (!success) {
       this.autoQueue = [];
       this.pendingDecision = null;
@@ -983,25 +1064,39 @@ class GameApp {
   }
 
   private createActionPlan(outcome: SimulationOutcome): AutoAction[] {
-    if (outcome.candidate.useHold) {
+    const { candidate } = outcome;
+    const piece: Piece = {
+      type: candidate.type,
+      rotation: candidate.rotation,
+      position: { x: candidate.x, y: candidate.y },
+    };
+    const { isTSpin } = detectTSpinPotential(this.game.getBoard(), piece);
+    const dropAction = isTSpin ? 'soft-drop' : 'hard-drop';
+
+    if (candidate.useHold) {
       const simulation = this.game.clone();
       if (!simulation.hold()) {
-        return ['hard-drop'];
+        return [dropAction];
       }
-      const postHoldPlan = this.planForActivePiece(simulation, outcome.candidate);
+      const postHoldPlan = this.planForActivePiece(
+        simulation,
+        candidate,
+        dropAction,
+      );
       return ['hold', ...postHoldPlan];
     }
     const simulation = this.game.clone();
-    return this.planForActivePiece(simulation, outcome.candidate);
+    return this.planForActivePiece(simulation, candidate, dropAction);
   }
 
   private planForActivePiece(
     gameState: TetrisGame,
     candidate: SimulationOutcome['candidate'],
+    dropAction: AutoAction,
   ): AutoAction[] {
     const active = gameState.getActivePiece();
     if (!active) {
-      return ['hard-drop'];
+      return [dropAction];
     }
     const board = gameState.getBoard();
     const start: PieceState = {
@@ -1016,12 +1111,13 @@ class GameApp {
       candidate.x,
       candidate.rotation,
       candidate.y,
+      dropAction,
     );
     if (planned) {
       return planned;
     }
     console.warn('Falling back to simple plan for candidate', candidate);
-    return simplePlan(start, candidate.x, candidate.rotation);
+    return simplePlan(start, candidate.x, candidate.rotation, dropAction);
   }
 
   private refreshSuggestions(
