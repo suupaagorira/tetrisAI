@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <title>Tetris AI Viewer</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" />
+  </head>
+  <body>
+    <div class="layout">
+      <header class="hud">
+        <h1>TETRIS AI</h1>
+        <div class="hud__stats">
+          <div>Score <span id="stat-score">0</span></div>
+          <div>Lines <span id="stat-lines">0</span></div>
+          <div>Level <span id="stat-level">1</span></div>
+          <div>Combo <span id="stat-combo">0</span></div>
+          <div>B2B <span id="stat-b2b">Off</span></div>
+        </div>
+        <div class="hud__buttons">
+          <button id="btn-toggle-auto" type="button">オート: OFF</button>
+          <button id="btn-reset" type="button">リセット</button>
+        </div>
+      </header>
+      <main class="playfield">
+        <section class="side-panel side-panel--left">
+          <h2>HOLD</h2>
+          <canvas id="hold-canvas" width="120" height="120"></canvas>
+        </section>
+        <section class="main-panel">
+          <canvas id="board-canvas" width="300" height="600"></canvas>
+        </section>
+        <section class="side-panel side-panel--right">
+          <h2>NEXT</h2>
+          <canvas id="queue-canvas" width="120" height="300"></canvas>
+        </section>
+      </main>
+      <footer class="controls">
+        <h2>操作</h2>
+        <ul>
+          <li>← / → : 左右移動</li>
+          <li>↓ : ソフトドロップ</li>
+          <li>Space : ハードドロップ</li>
+          <li>Z / X / ↑ / A / S : 回転</li>
+          <li>Shift / C : ホールド</li>
+          <li>P : オートプレイ切替</li>
+          <li>R : リセット</li>
+        </ul>
+      </footer>
+    </div>
+    <script src="/assets/client.js" type="module"></script>
+  </body>
+</html>

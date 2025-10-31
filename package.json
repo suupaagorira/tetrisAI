@@ -8,17 +8,24 @@
     "start": "tsx src/cli/main.ts",
     "train": "tsx src/training/offline_trainer.ts",
     "test": "vitest run",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "gui": "tsx src/gui/server.ts",
+    "gui:watch": "tsx src/gui/server.ts --watch"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "devDependencies": {
+    "@types/express": "^4.17.21",
     "@types/node": "^24.9.2",
+    "esbuild": "^0.24.0",
     "ts-node": "^10.9.2",
     "tsx": "^4.20.6",
     "typescript": "^5.9.3",
     "vitest": "^4.0.6"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
   }
 }
