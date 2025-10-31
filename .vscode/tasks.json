@@ -1,0 +1,34 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "npm: lint",
+      "type": "npm",
+      "script": "lint",
+      "problemMatcher": ["$tsc"],
+      "group": "build"
+    },
+    {
+      "label": "npm: test",
+      "type": "npm",
+      "script": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "npm: start (CLI)",
+      "type": "shell",
+      "command": "npm run start -- --render",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "npm: train",
+      "type": "npm",
+      "script": "train",
+      "problemMatcher": []
+    }
+  ]
+}
