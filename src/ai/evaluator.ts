@@ -13,7 +13,7 @@ export const DEFAULT_WEIGHTS: Record<string, number> = {
   tspin: 2.0,
   tspin_mini: 0.6,
   back_to_back: 0.8,
-  combo: 0.4,
+  combo: 0.8,
   combo_active: 0.2,
   aggregate_height: -0.6,
   max_height: -0.4,
@@ -28,6 +28,8 @@ export const DEFAULT_WEIGHTS: Record<string, number> = {
   score_gain: 0.1,
   perfect_clear: 5.0,
   wasted_placement: -0.5,
+  game_over: -1000,
+  gaps: -0.4,
 };
 
 export class LinearEvaluator {

@@ -247,6 +247,7 @@ function simulateCandidate(
     clone.getStats(),
     clear,
     candidate.dropDistance,
+    clone.isGameOver(),
   );
   const evaluation = evaluator.evaluate(features);
   return {

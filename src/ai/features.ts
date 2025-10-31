@@ -17,12 +17,14 @@ export function computeFeatures(
   stats: GameStats,
   clear: ClearResult,
   dropDistance: number,
+  isGameOver: boolean,
 ): FeatureVector {
   const visibleRows = collectVisibleRows(board);
   const metrics = analyzeColumns(visibleRows);
   const rowTransitions = countRowTransitions(visibleRows);
   const occupied = countOccupiedCells(visibleRows);
   const surfaceRoughness = computeSurfaceRoughness(metrics.heights);
+  const gaps = countGaps(visibleRows);
 
   const values: Record<string, number> = {
     bias: 1,
@@ -52,6 +54,8 @@ export function computeFeatures(
       ? 1
       : 0,
     wasted_placement: clear.linesCleared === 0 ? 1 : 0,
+    game_over: isGameOver ? 1 : 0,
+    gaps: gaps / (board.width * visibleRows.length || 1),
   };
 
   return { values };
@@ -65,6 +69,20 @@ function collectVisibleRows(board: MatrixBoard): number[][] {
   return rows;
 }
 
+function countGaps(rows: number[][]): number {
+  let gaps = 0;
+  for (const row of rows) {
+    if (!row) {
+      continue;
+    }
+    for (let x = 1; x < row.length - 1; x++) {
+      if (row[x] === 0 && row[x - 1] !== 0 && row[x + 1] !== 0) {
+        gaps++;
+      }
+    }
+  }
+  return gaps;
+}
 function analyzeColumns(rows: number[][]): ColumnMetrics {
   const width = rows[0]?.length ?? 0;
   const heights = new Array<number>(width).fill(0);
