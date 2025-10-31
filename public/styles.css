@@ -133,6 +133,51 @@ canvas {
   box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(95, 217, 255, 0.18);
 }
 
+.side-panel__moves {
+  margin-top: 16px;
+  padding: 12px 14px;
+  background: linear-gradient(160deg, rgba(20, 24, 38, 0.95), rgba(9, 10, 18, 0.9));
+  border: 1px solid rgba(95, 217, 255, 0.12);
+  border-radius: 10px;
+  box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.25);
+}
+
+.side-panel__moves h3 {
+  margin: 0 0 10px 0;
+  font-size: 14px;
+  letter-spacing: 0.12em;
+  text-align: center;
+  color: var(--color-accent);
+}
+
+.suggestion-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.suggestion-list__item {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(8, 10, 18, 0.8);
+  border: 1px solid rgba(95, 217, 255, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+  line-height: 1.45;
+}
+
+.suggestion-list__item strong {
+  color: var(--color-accent);
+}
+
+.suggestion-list__item--empty {
+  text-align: center;
+  color: rgba(255, 255, 255, 0.4);
+}
+
 .controls {
   background: rgba(13, 15, 23, 0.85);
   border: 1px solid rgba(95, 217, 255, 0.08);

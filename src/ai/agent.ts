@@ -11,7 +11,7 @@ import {
 import { computeFeatures, FeatureVector } from './features';
 import { LinearEvaluator } from './evaluator';
 
-interface PlacementCandidate {
+export interface PlacementCandidate {
   readonly type: PieceType;
   readonly rotation: Rotation;
   readonly x: number;
@@ -21,7 +21,7 @@ interface PlacementCandidate {
   readonly origin: 'active' | 'hold' | 'queue';
 }
 
-interface SimulationOutcome {
+export interface SimulationOutcome {
   candidate: PlacementCandidate;
   clear: ClearResult;
   game: TetrisGame;
@@ -43,29 +43,30 @@ export class PatternInferenceAgent {
     this.options = options;
   }
 
-  decide(game: TetrisGame): SimulationOutcome | null {
+  evaluateCandidates(game: TetrisGame): SimulationOutcome[] {
     const status = game.getStatus();
     const candidates = enumerateCandidates(game, status, this.options);
     if (candidates.length === 0) {
-      return null;
+      return [];
     }
     const outcomes: SimulationOutcome[] = [];
-    let best: SimulationOutcome | null = null;
     for (const candidate of candidates) {
       const outcome = simulateCandidate(game, candidate, this.evaluator);
-      if (!outcome) {
-        continue;
-      }
-      outcomes.push(outcome);
-      if (!best || outcome.evaluation > best.evaluation) {
-        best = outcome;
+      if (outcome) {
+        outcomes.push(outcome);
       }
     }
+    outcomes.sort((a, b) => b.evaluation - a.evaluation);
+    return outcomes;
+  }
+
+  decide(game: TetrisGame): SimulationOutcome | null {
+    const outcomes = this.evaluateCandidates(game);
     if (outcomes.length === 0) {
       return null;
     }
     const explorationRate = this.options.explorationRate ?? 0;
-    let selected: SimulationOutcome | null = best;
+    let selected: SimulationOutcome | null = outcomes[0] ?? null;
     if (explorationRate > 0 && Math.random() < explorationRate) {
       const index = Math.floor(Math.random() * outcomes.length);
       const candidate = outcomes[index];
