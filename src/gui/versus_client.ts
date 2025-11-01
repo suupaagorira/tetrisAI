@@ -58,6 +58,7 @@ function getSpeedPreset(value: number): SpeedPreset {
 interface VersusTrainingStatusDto {
   running: boolean;
   cycle: number;
+  batchSize: number;
   episodesPerBatch: number;
   averageScore: { p1: number; p2: number };
   averageLines: { p1: number; p2: number };
@@ -74,6 +75,8 @@ interface VersusTrainingElements {
   reloadButton: HTMLButtonElement;
   statusLabel: HTMLElement;
   cycleLabel: HTMLElement;
+  batchSizeLabel: HTMLElement;
+  episodesPerBatchLabel: HTMLElement;
   avgScoreP1: HTMLElement;
   avgScoreP2: HTMLElement;
   avgLinesP1: HTMLElement;
@@ -534,6 +537,8 @@ class VersusTrainingClient {
     const {
       statusLabel,
       cycleLabel,
+      batchSizeLabel,
+      episodesPerBatchLabel,
       avgScoreP1,
       avgScoreP2,
       avgLinesP1,
@@ -549,6 +554,8 @@ class VersusTrainingClient {
 
     statusLabel.textContent = status.running ? '稼働中' : '停止中';
     cycleLabel.textContent = status.cycle.toString();
+    batchSizeLabel.textContent = status.batchSize.toString();
+    episodesPerBatchLabel.textContent = status.episodesPerBatch.toString();
     avgScoreP1.textContent = formatStat(status.averageScore.p1);
     avgScoreP2.textContent = formatStat(status.averageScore.p2);
     avgLinesP1.textContent = formatStat(status.averageLines.p1);
@@ -948,6 +955,8 @@ async function bootstrap(): Promise<void> {
     reloadButton: document.getElementById('btn-versus-reload-weights'),
     statusLabel: document.getElementById('versus-train-status-label'),
     cycleLabel: document.getElementById('versus-train-cycle'),
+    batchSizeLabel: document.getElementById('versus-train-batch-size'),
+    episodesPerBatchLabel: document.getElementById('versus-train-episodes-per-batch'),
     avgScoreP1: document.getElementById('versus-train-avg-score-p1'),
     avgScoreP2: document.getElementById('versus-train-avg-score-p2'),
     avgLinesP1: document.getElementById('versus-train-avg-lines-p1'),
@@ -1024,6 +1033,8 @@ async function bootstrap(): Promise<void> {
       reloadButton: trainingElements.reloadButton as HTMLButtonElement,
       statusLabel: trainingElements.statusLabel as HTMLElement,
       cycleLabel: trainingElements.cycleLabel as HTMLElement,
+      batchSizeLabel: trainingElements.batchSizeLabel as HTMLElement,
+      episodesPerBatchLabel: trainingElements.episodesPerBatchLabel as HTMLElement,
       avgScoreP1: trainingElements.avgScoreP1 as HTMLElement,
       avgScoreP2: trainingElements.avgScoreP2 as HTMLElement,
       avgLinesP1: trainingElements.avgLinesP1 as HTMLElement,
