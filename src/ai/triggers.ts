@@ -220,11 +220,12 @@ export function calculateKillProbability(
   score += attackPotential * 2;  // Weight: 2
 
   // Our combo/B2B status
-  if (game.backToBack) {
+  const stats = game.getStats();
+  if (stats.backToBack) {
     score += 1;
   }
-  if (game.combo > 0) {
-    score += Math.min(game.combo / 5, 1);
+  if (stats.combo > 0) {
+    score += Math.min(stats.combo / 5, 1);
   }
 
   // Height advantage
@@ -287,7 +288,8 @@ function evaluateB2BStatus(
   const config = DEFAULT_TRIGGER_CONFIGS[TriggerType.B2B_STATUS];
   const state = triggerState[TriggerType.B2B_STATUS]!;
 
-  const hasB2B = game.backToBack;
+  const gameStats = game.getStats();
+  const hasB2B = gameStats.backToBack;
   const value = hasB2B ? 1 : 0;
 
   // B2B trigger activates when B2B is active, deactivates when lost
@@ -337,7 +339,7 @@ function evaluateResourceDepletion(
   return {
     triggered,
     type: TriggerType.RESOURCE_DEPLETION,
-    recommendedStrategy: StrategyType.STABLE_DOWNSTACK,  // Use fallback template
+    recommendedStrategy: StrategyType.DEFENSE_CANCEL,  // Use defensive strategy
     priority: config.priority,
     reason: `Resource availability: ${(resourceScore * 100).toFixed(0)}%`,
     confidence: 1 - resourceScore

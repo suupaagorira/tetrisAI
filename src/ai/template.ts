@@ -307,41 +307,44 @@ export function checkPreconditions(
   game: TetrisGame,
   features: FeatureVector
 ): boolean {
+  const stats = game.getStats();
+  const v = features.values;
+
   // Height checks
-  if (preconditions.minHeight !== undefined && features.aggregate_height < preconditions.minHeight / 20) {
+  if (preconditions.minHeight !== undefined && (v.aggregate_height ?? 0) < preconditions.minHeight / 20) {
     return false;
   }
-  if (preconditions.maxHeight !== undefined && features.aggregate_height > preconditions.maxHeight / 20) {
+  if (preconditions.maxHeight !== undefined && (v.aggregate_height ?? 1) > preconditions.maxHeight / 20) {
     return false;
   }
 
   // Hole checks
-  if (preconditions.minHoles !== undefined && features.holes < preconditions.minHoles / 200) {
+  if (preconditions.minHoles !== undefined && (v.holes ?? 0) < preconditions.minHoles / 200) {
     return false;
   }
-  if (preconditions.maxHoles !== undefined && features.holes > preconditions.maxHoles / 200) {
+  if (preconditions.maxHoles !== undefined && (v.holes ?? 0) > preconditions.maxHoles / 200) {
     return false;
   }
 
   // Back-to-back check
   if (preconditions.requireBackToBack !== undefined && preconditions.requireBackToBack) {
-    if (!game.backToBack || features.back_to_back === 0) {
+    if (!stats.backToBack || (v.back_to_back ?? 0) === 0) {
       return false;
     }
   }
 
   // Combo checks
   if (preconditions.requireCombo !== undefined && preconditions.requireCombo) {
-    if (game.combo === 0 || features.combo_active === 0) {
+    if (stats.combo === 0 || (v.combo_active ?? 0) === 0) {
       return false;
     }
   }
-  if (preconditions.minComboCount !== undefined && game.combo < preconditions.minComboCount) {
+  if (preconditions.minComboCount !== undefined && stats.combo < preconditions.minComboCount) {
     return false;
   }
 
   // Occupancy check
-  if (preconditions.maxOccupancy !== undefined && features.occupancy > preconditions.maxOccupancy) {
+  if (preconditions.maxOccupancy !== undefined && (v.occupancy ?? 0) > preconditions.maxOccupancy) {
     return false;
   }
 
@@ -356,43 +359,46 @@ export function checkInvariants(
   game: TetrisGame,
   features: FeatureVector
 ): boolean {
+  const stats = game.getStats();
+  const v = features.values;
+
   // Height limit
   if (invariants.maxHeightLimit !== undefined) {
-    if (features.max_height > invariants.maxHeightLimit / 20) {
+    if ((v.max_height ?? 0) > invariants.maxHeightLimit / 20) {
       return false;
     }
   }
 
   // Hole limit
   if (invariants.maxHoleLimit !== undefined) {
-    if (features.holes > invariants.maxHoleLimit / 200) {
+    if ((v.holes ?? 0) > invariants.maxHoleLimit / 200) {
       return false;
     }
   }
 
   // Must clear lines
   if (invariants.mustClearLines !== undefined && invariants.mustClearLines) {
-    if (features.lines_cleared === 0) {
+    if ((v.lines_cleared ?? 0) === 0) {
       return false;
     }
   }
 
   // Preserve B2B
   if (invariants.preserveB2B !== undefined && invariants.preserveB2B) {
-    if (game.backToBack && features.back_to_back === 0) {
+    if (stats.backToBack && (v.back_to_back ?? 0) === 0) {
       return false;  // Would break B2B
     }
   }
 
   // Preserve combo
   if (invariants.preserveCombo !== undefined && invariants.preserveCombo) {
-    if (game.combo > 0 && features.combo === 0) {
+    if (stats.combo > 0 && (v.combo ?? 0) === 0) {
       return false;  // Would break combo
     }
   }
 
   // Game over check (always enforced)
-  if (features.game_over === 1) {
+  if ((v.game_over ?? 0) === 1) {
     return false;
   }
 

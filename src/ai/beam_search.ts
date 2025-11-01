@@ -6,7 +6,7 @@
  */
 
 import { TetrisGame } from '../core/game';
-import { Piece } from '../core/pieces';
+import { Piece } from '../core/types';
 import { FeatureVector } from './features';
 
 /**
@@ -93,27 +93,49 @@ export function beamSearch(
         simGame.hold();
       }
 
-      // Create piece at target position
-      const targetPiece = new Piece(candidate.piece.type, candidate.rotation);
-      targetPiece.x = candidate.column;
-
-      // Find drop position
-      let dropY = 0;
-      while (simGame.canPlace(new Piece(targetPiece.type, targetPiece.rotation, targetPiece.x, dropY + 1))) {
-        dropY++;
+      // Get active piece after potential hold
+      const activePiece = simGame.getActivePiece();
+      if (!activePiece) {
+        continue;
       }
-      targetPiece.y = dropY;
 
-      // Set as active piece and hard drop
-      simGame.activePiece = targetPiece;
-      const dropDist = simGame.hardDrop();
+      // Rotate to target rotation
+      const currentRotation = activePiece.rotation;
+      const targetRotation = candidate.rotation;
+      const rotationDiff = (targetRotation - currentRotation + 4) % 4;
 
-      if (dropDist >= 0) {
+      for (let i = 0; i < rotationDiff; i++) {
+        simGame.rotate('cw');
+      }
+
+      // Move to target column
+      const currentPiece = simGame.getActivePiece();
+      if (!currentPiece) {
+        continue;
+      }
+      const currentX = currentPiece.position.x;
+      const targetX = candidate.column;
+      const moveDiff = targetX - currentX;
+
+      if (moveDiff > 0) {
+        for (let i = 0; i < moveDiff; i++) {
+          if (!simGame.move(1)) break;
+        }
+      } else if (moveDiff < 0) {
+        for (let i = 0; i < Math.abs(moveDiff); i++) {
+          if (!simGame.move(-1)) break;
+        }
+      }
+
+      // Hard drop and get result
+      const dropResult = simGame.hardDrop();
+
+      if (dropResult) {
         // Valid placement
-        const result = evaluateFn(simGame, dropDist);
+        const result = evaluateFn(simGame, dropResult.linesCleared);
         candidate.evaluation = result.evaluation;
         candidate.features = result.features;
-        candidate.dropDistance = dropDist;
+        candidate.dropDistance = dropResult.linesCleared;
         evaluatedCandidates.push(candidate);
         candidatesEvaluated++;
       }
@@ -152,23 +174,36 @@ export function beamSearch(
 function enumerateCandidates(game: TetrisGame): BeamCandidate[] {
   const candidates: BeamCandidate[] = [];
 
-  if (!game.activePiece) {
+  const activePiece = game.getActivePiece();
+  if (!activePiece) {
     return candidates;
   }
 
   // Current piece candidates
-  addPieceCandidates(candidates, game.activePiece, false, game);
+  addPieceCandidates(candidates, activePiece, false, game);
 
   // Hold piece candidates (if hold available)
-  if (!game.holdLocked) {
-    if (game.holdPiece) {
-      // Use hold piece
-      addPieceCandidates(candidates, game.holdPiece, true, game);
+  const status = game.getStatus();
+  if (!status.holdLocked) {
+    const holdPiece = game.getHoldPiece();
+    if (holdPiece) {
+      // Use hold piece - create a piece object for it
+      const holdPieceObj: Piece = {
+        type: holdPiece,
+        rotation: 0,
+        position: { x: 3, y: 0 }
+      };
+      addPieceCandidates(candidates, holdPieceObj, true, game);
     } else {
       // First time hold: check next piece
-      const nextPieces = game.getNextPieces(1);
+      const nextPieces = game.getNextQueue();
       if (nextPieces[0]) {
-        addPieceCandidates(candidates, nextPieces[0], true, game);
+        const nextPieceObj: Piece = {
+          type: nextPieces[0],
+          rotation: 0,
+          position: { x: 3, y: 0 }
+        };
+        addPieceCandidates(candidates, nextPieceObj, true, game);
       }
     }
   }
@@ -186,18 +221,21 @@ function addPieceCandidates(
   game: TetrisGame
 ): void {
   const rotations = piece.type === 'O' ? 1 : 4;  // O piece has only 1 unique rotation
+  const board = game.getBoard();
 
   for (let rotation = 0; rotation < rotations; rotation++) {
-    const rotatedPiece = new Piece(piece.type, rotation);
-
     // Try all columns
-    for (let column = 0; column < game.board.width; column++) {
-      const testPiece = new Piece(rotatedPiece.type, rotation, column, 0);
+    for (let column = 0; column < board.width; column++) {
+      const testPiece: Piece = {
+        type: piece.type,
+        rotation: rotation as 0 | 1 | 2 | 3,
+        position: { x: column, y: 0 }
+      };
 
       // Check if placement is valid
       if (isValidPlacement(testPiece, game)) {
         candidates.push({
-          piece: new Piece(piece.type),
+          piece: piece,
           rotation,
           column,
           useHold,
@@ -213,9 +251,14 @@ function addPieceCandidates(
  * Check if placement is valid (piece can spawn and drop)
  */
 function isValidPlacement(piece: Piece, game: TetrisGame): boolean {
+  const board = game.getBoard();
   // Check if piece can be placed at any valid Y position
-  for (let y = 0; y < game.board.height; y++) {
-    const testPiece = new Piece(piece.type, piece.rotation, piece.x, y);
+  for (let y = 0; y < board.height; y++) {
+    const testPiece: Piece = {
+      type: piece.type,
+      rotation: piece.rotation,
+      position: { x: piece.position.x, y: y }
+    };
     if (game.canPlace(testPiece)) {
       return true;
     }
@@ -258,23 +301,48 @@ export function optimizedBeamSearch(
         simGame.hold();
       }
 
-      const targetPiece = new Piece(candidate.piece.type, candidate.rotation, candidate.column);
-
-      // Fast drop
-      let dropY = 0;
-      while (simGame.canPlace(new Piece(targetPiece.type, targetPiece.rotation, targetPiece.x, dropY + 1))) {
-        dropY++;
+      // Get active piece after potential hold
+      const activePiece = simGame.getActivePiece();
+      if (!activePiece) {
+        continue;
       }
-      targetPiece.y = dropY;
 
-      simGame.activePiece = targetPiece;
-      const dropDist = simGame.hardDrop();
+      // Rotate to target rotation
+      const currentRotation = activePiece.rotation;
+      const targetRotation = candidate.rotation;
+      const rotationDiff = (targetRotation - currentRotation + 4) % 4;
 
-      if (dropDist >= 0) {
-        const result = evaluateFn(simGame, dropDist);
+      for (let i = 0; i < rotationDiff; i++) {
+        simGame.rotate('cw');
+      }
+
+      // Move to target column
+      const currentPiece = simGame.getActivePiece();
+      if (!currentPiece) {
+        continue;
+      }
+      const currentX = currentPiece.position.x;
+      const targetX = candidate.column;
+      const moveDiff = targetX - currentX;
+
+      if (moveDiff > 0) {
+        for (let i = 0; i < moveDiff; i++) {
+          if (!simGame.move(1)) break;
+        }
+      } else if (moveDiff < 0) {
+        for (let i = 0; i < Math.abs(moveDiff); i++) {
+          if (!simGame.move(-1)) break;
+        }
+      }
+
+      // Hard drop and get result
+      const dropResult = simGame.hardDrop();
+
+      if (dropResult) {
+        const result = evaluateFn(simGame, dropResult.linesCleared);
         candidate.evaluation = result.evaluation;
         candidate.features = result.features;
-        candidate.dropDistance = dropDist;
+        candidate.dropDistance = dropResult.linesCleared;
         evaluatedCandidates.push(candidate);
         candidatesEvaluated++;
 

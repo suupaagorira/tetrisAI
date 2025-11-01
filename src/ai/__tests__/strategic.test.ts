@@ -7,7 +7,6 @@
  */
 
 import { TetrisGame } from '../../core/game';
-import { Bag } from '../../core/bag';
 import { StrategicAgent, createVersusAgent, createSoloAgent } from '../strategic_agent';
 import { StrategyType } from '../strategy';
 import { VersusContext } from '../features_extended';
@@ -30,8 +29,7 @@ describe('Strategic AI System', () => {
 
     it('should make decisions within target latency', () => {
       const agent = new StrategicAgent({ targetLatency: 8 });
-      const bag = new Bag(12345);
-      const game = new TetrisGame(bag);
+      const game = new TetrisGame({ seed: 12345 });
 
       const startTime = performance.now();
       const decision = agent.decide(game);
@@ -43,8 +41,7 @@ describe('Strategic AI System', () => {
 
     it('should track telemetry when enabled', () => {
       const agent = new StrategicAgent({ enableTelemetry: true });
-      const bag = new Bag(12345);
-      const game = new TetrisGame(bag);
+      const game = new TetrisGame({ seed: 12345 });
 
       agent.decide(game);
 
@@ -65,13 +62,13 @@ describe('Strategic AI System', () => {
         initialStrategy: StrategyType.B2B_PRESSURE
       });
 
-      const bag = new Bag(12345);
-      const game = new TetrisGame(bag);
+      const game = new TetrisGame({ seed: 12345 });
 
       // Artificially raise board height
+      const board = game.getBoard();
       for (let y = 10; y < 18; y++) {
         for (let x = 0; x < 8; x++) {
-          game.board.cells[y]![x] = 1;
+          board.cells[y]![x] = 1;
         }
       }
 
@@ -86,8 +83,7 @@ describe('Strategic AI System', () => {
 
     it('should respect cooldown between switches', () => {
       const agent = new StrategicAgent();
-      const bag = new Bag(12345);
-      const game = new TetrisGame(bag);
+      const game = new TetrisGame({ seed: 12345 });
 
       const initialStrategy = agent.getCurrentStrategy();
 
@@ -108,8 +104,7 @@ describe('Strategic AI System', () => {
 
     it('should use versus context for decisions', () => {
       const agent = createVersusAgent();
-      const bag = new Bag(12345);
-      const game = new TetrisGame(bag);
+      const game = new TetrisGame({ seed: 12345 });
 
       const versusContext: VersusContext = {
         opponentHeight: 0.8,
@@ -124,8 +119,7 @@ describe('Strategic AI System', () => {
     });
 
     it('should calculate kill probability correctly', () => {
-      const bag = new Bag(12345);
-      const game = new TetrisGame(bag);
+      const game = new TetrisGame({ seed: 12345 });
 
       const features = {
         values: {
@@ -149,12 +143,11 @@ describe('Strategic AI System', () => {
   describe('Performance Tests', () => {
     it('should meet 99th percentile latency requirement (≤8ms)', () => {
       const agent = new StrategicAgent({ targetLatency: 4 });
-      const bag = new Bag(12345);
       const latencies: number[] = [];
 
       // Run 100 decisions
       for (let i = 0; i < 100; i++) {
-        const game = new TetrisGame(bag);
+        const game = new TetrisGame({ seed: 12345 + i });
 
         const startTime = performance.now();
         agent.decide(game);
@@ -176,8 +169,7 @@ describe('Strategic AI System', () => {
         beamConfig: { beamWidth: 8, maxDepth: 1, timeLimit: 4, pruneThreshold: 0.3 }
       });
 
-      const bag = new Bag(12345);
-      const game = new TetrisGame(bag);
+      const game = new TetrisGame({ seed: 12345 });
 
       const decision = agent.decide(game);
 
@@ -197,13 +189,13 @@ describe('Strategic AI System', () => {
         initialStrategy: StrategyType.B2B_PRESSURE
       });
 
-      const bag = new Bag(12345);
-      const game = new TetrisGame(bag);
+      const game = new TetrisGame({ seed: 12345 });
 
       // Set board to critical height
+      const board = game.getBoard();
       for (let y = 5; y < 18; y++) {
         for (let x = 0; x < 8; x++) {
-          game.board.cells[y]![x] = 1;
+          board.cells[y]![x] = 1;
         }
       }
 
@@ -220,8 +212,7 @@ describe('Strategic AI System', () => {
 
     it('should activate garbage defense when incoming > 6 lines', () => {
       const agent = createVersusAgent();
-      const bag = new Bag(12345);
-      const game = new TetrisGame(bag);
+      const game = new TetrisGame({ seed: 12345 });
 
       const versusContext: VersusContext = {
         opponentHeight: 0.5,
@@ -249,8 +240,7 @@ describe('Strategic AI System', () => {
   describe('Telemetry Export', () => {
     it('should export telemetry as JSON', () => {
       const agent = new StrategicAgent();
-      const bag = new Bag(12345);
-      const game = new TetrisGame(bag);
+      const game = new TetrisGame({ seed: 12345 });
 
       agent.decide(game);
 
@@ -265,8 +255,7 @@ describe('Strategic AI System', () => {
 
     it('should export summary with statistics', () => {
       const agent = new StrategicAgent();
-      const bag = new Bag(12345);
-      const game = new TetrisGame(bag);
+      const game = new TetrisGame({ seed: 12345 });
 
       // Make several decisions
       for (let i = 0; i < 10; i++) {
