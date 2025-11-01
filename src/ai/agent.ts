@@ -212,33 +212,22 @@ function simulateCandidate(
     return null;
   }
   const internal = clone as unknown as any;
-  const tspinInfo = detectTSpinPotential(game.getBoard(), piece);
+  // T-Spin simulation removed due to inaccuracy (issue #4)
+  // PlacementCandidate doesn't track rotation sequences, so we can't
+  // accurately determine if a T-Spin occurred. Treat all placements as hard drops.
   internal.active = piece;
-  internal.lastAction = tspinInfo.isTSpin ? 'rotate' : 'hardDrop';
+  internal.lastAction = 'hardDrop';
   internal.lastKick = [0, 0];
 
-  let clear: ClearResult | null;
-  if (tspinInfo.isTSpin) {
-    // Soft drop simulation
-    if (
-      candidate.dropDistance > 0 &&
-      internal.statsValue &&
-      typeof internal.statsValue.score === 'number'
-    ) {
-      internal.statsValue.score += candidate.dropDistance; // Soft drop score
-    }
-    clear = internal.lockActive();
-  } else {
-    // Hard drop simulation (original logic)
-    if (
-      candidate.dropDistance > 0 &&
-      internal.statsValue &&
-      typeof internal.statsValue.score === 'number'
-    ) {
-      internal.statsValue.score += candidate.dropDistance * 2; // Hard drop score
-    }
-    clear = internal.lockActive();
+  // Hard drop simulation
+  if (
+    candidate.dropDistance > 0 &&
+    internal.statsValue &&
+    typeof internal.statsValue.score === 'number'
+  ) {
+    internal.statsValue.score += candidate.dropDistance * 2; // Hard drop score
   }
+  const clear: ClearResult | null = internal.lockActive();
   if (!clear) {
     return null;
   }
@@ -259,69 +248,6 @@ function simulateCandidate(
   };
 }
 
-function detectTSpinPotential(
-  board: MatrixBoard,
-  piece: Piece,
-): { isTSpin: boolean; isMini: boolean } {
-  if (piece.type !== 'T') {
-    return { isTSpin: false, isMini: false };
-  }
-  const tempBoard = board.clone();
-  const cells = getAbsoluteCells(piece.type, piece.rotation, piece.position);
-  const insideCells = cells.filter((cell) => cell.y >= 0);
-  if (insideCells.length === 0) {
-    return { isTSpin: false, isMini: false };
-  }
-  for (const cell of insideCells) {
-    if (tempBoard.isInside(cell.x, cell.y)) {
-      tempBoard.set(cell.x, cell.y, 8);
-    }
-  }
-  const center = {
-    x: piece.position.x + 1,
-    y: piece.position.y + 1,
-  };
-  const corners = [
-    { x: center.x - 1, y: center.y - 1 },
-    { x: center.x + 1, y: center.y - 1 },
-    { x: center.x - 1, y: center.y + 1 },
-    { x: center.x + 1, y: center.y + 1 },
-  ];
-  let occupied = 0;
-  for (const corner of corners) {
-    if (tempBoard.isOccupied(corner.x, corner.y)) {
-      occupied += 1;
-    }
-  }
-  if (occupied < 3) {
-    return { isTSpin: false, isMini: false };
-  }
-  const frontCorners: Record<Rotation, [number, number][]> = {
-    0: [
-      [center.x - 1, center.y + 1],
-      [center.x + 1, center.y + 1],
-    ],
-    1: [
-      [center.x - 1, center.y - 1],
-      [center.x - 1, center.y + 1],
-    ],
-    2: [
-      [center.x - 1, center.y - 1],
-      [center.x + 1, center.y - 1],
-    ],
-    3: [
-      [center.x + 1, center.y - 1],
-      [center.x + 1, center.y + 1],
-    ],
-  };
-  const front = frontCorners[piece.rotation];
-  const frontOccupied = front.reduce(
-    (sum, [x, y]) => sum + (tempBoard.isOccupied(x, y) ? 1 : 0),
-    0,
-  );
-  const isMini = frontOccupied < 2;
-  return { isTSpin: true, isMini };
-}
 
 
 
