@@ -277,3 +277,362 @@ canvas {
     justify-content: center;
   }
 }
+
+.versus-body {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(circle at top, #1f2233, #0f1016 70%);
+  color: var(--color-text);
+  font-family: var(--font-main);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.versus-layout {
+  width: min(1280px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  background: rgba(8, 10, 20, 0.8);
+  border: 1px solid var(--color-border);
+  border-radius: 20px;
+  padding: 28px 32px;
+  box-shadow: 0 24px 60px var(--color-shadow);
+}
+
+.versus-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: 20px;
+  align-items: flex-end;
+}
+
+.versus-header h1 {
+  margin: 0;
+  font-size: clamp(26px, 4vw, 42px);
+  letter-spacing: 0.2em;
+  text-shadow: 0 4px 28px rgba(95, 217, 255, 0.5);
+}
+
+.versus-subtitle {
+  margin: 4px 0 0 0;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.versus-header__weights,
+.versus-header__status {
+  display: grid;
+  gap: 8px;
+  font-size: 14px;
+  text-transform: uppercase;
+}
+
+.versus-header__status span {
+  color: var(--color-accent);
+}
+
+.versus-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(160deg, rgba(27, 31, 48, 0.95), rgba(14, 16, 26, 0.92));
+  border: 1px solid rgba(95, 217, 255, 0.12);
+  border-radius: 14px;
+  padding: 16px 20px;
+}
+
+.versus-controls__buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.versus-controls__speed {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+}
+
+#btn-versus-loop[data-active='true'] {
+  border-color: rgba(95, 217, 255, 0.9);
+  box-shadow: 0 6px 18px rgba(95, 217, 255, 0.35);
+}
+
+.versus-main {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.versus-player {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: linear-gradient(160deg, rgba(27, 31, 48, 0.95), rgba(14, 16, 26, 0.9));
+  border: 1px solid rgba(95, 217, 255, 0.1);
+  border-radius: 16px;
+  padding: 20px;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.versus-player--active {
+  border-color: rgba(95, 217, 255, 0.6);
+  box-shadow: 0 12px 30px rgba(95, 217, 255, 0.25);
+}
+
+.versus-player--winner {
+  border-color: #6bf178;
+  box-shadow: 0 12px 34px rgba(107, 241, 120, 0.35);
+}
+
+.versus-player--loser {
+  opacity: 0.85;
+}
+
+.versus-player__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.versus-player__header h2 {
+  margin: 0;
+  font-size: 20px;
+  letter-spacing: 0.1em;
+}
+
+.versus-player__tag {
+  font-size: 12px;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.versus-board {
+  width: 100%;
+  background: rgba(12, 15, 24, 0.92);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  display: block;
+}
+
+.versus-stats {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.versus-stats div {
+  display: grid;
+  gap: 4px;
+  background: rgba(12, 15, 24, 0.75);
+  border-radius: 10px;
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.versus-stats dt {
+  font-size: 12px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.65);
+  margin: 0;
+}
+
+.versus-stats dd {
+  margin: 0;
+  font-size: 18px;
+  color: var(--color-accent);
+}
+
+.versus-stats__status dd {
+  font-size: 16px;
+}
+
+.versus-log {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: linear-gradient(160deg, rgba(27, 31, 48, 0.95), rgba(14, 16, 26, 0.9));
+  border: 1px solid rgba(95, 217, 255, 0.1);
+  border-radius: 16px;
+  padding: 20px;
+}
+
+.versus-log header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.versus-log h2 {
+  margin: 0;
+  font-size: 18px;
+  letter-spacing: 0.1em;
+}
+
+.versus-log__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 200px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.versus-log__item {
+  font-size: 14px;
+  background: rgba(12, 15, 24, 0.75);
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.versus-log__item--info {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.versus-log__item--attack {
+  color: #ffb35c;
+}
+
+.versus-log__item--defence {
+  color: #6bf178;
+}
+
+.versus-train {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: linear-gradient(160deg, rgba(27, 31, 48, 0.95), rgba(14, 16, 26, 0.9));
+  border: 1px solid rgba(95, 217, 255, 0.1);
+  border-radius: 16px;
+  padding: 18px 20px;
+}
+
+.versus-train__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.versus-train__header h2 {
+  margin: 0;
+  font-size: 18px;
+  letter-spacing: 0.12em;
+}
+
+.versus-train__controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+#versus-train-status-label {
+  font-size: 14px;
+  color: var(--color-accent);
+}
+
+.versus-train__body {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.versus-train__stats {
+  flex: 1 1 320px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.versus-train__stats div {
+  display: grid;
+  gap: 4px;
+  background: rgba(12, 15, 24, 0.75);
+  border-radius: 10px;
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.versus-train__stats dt {
+  margin: 0;
+  font-size: 12px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.versus-train__stats dd {
+  margin: 0;
+  font-size: 16px;
+  color: var(--color-accent);
+}
+
+.versus-train__preview {
+  flex: 1 1 240px;
+  display: flex;
+  gap: 16px;
+  justify-content: space-evenly;
+}
+
+.versus-train__preview-board {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.versus-train__preview-board span {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.versus-train__preview-board canvas {
+  background: rgba(12, 15, 24, 0.92);
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.versus-train__message {
+  margin: 0;
+  font-size: 13px;
+  min-height: 18px;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+@media (max-width: 1024px) {
+  .versus-layout {
+    padding: 20px;
+  }
+
+  .versus-main {
+    grid-template-columns: 1fr;
+  }
+
+  .versus-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .versus-train__stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .versus-train__preview {
+    justify-content: flex-start;
+  }
+}

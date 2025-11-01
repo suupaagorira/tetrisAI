@@ -48,6 +48,7 @@ export interface ClearResult {
   backToBackAwarded: boolean;
   combo: number;
   scoreGained: number;
+  garbageSent: number;
 }
 
 export interface GameStatus {

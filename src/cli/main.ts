@@ -6,12 +6,19 @@ import { getAbsoluteCells } from '../core/pieces';
 import { Piece } from '../core/types';
 import { PatternInferenceAgent } from '../ai/agent';
 import { LinearEvaluator, DEFAULT_WEIGHTS } from '../ai/evaluator';
+import { VersusEnvironment } from '../versus/environment';
+
+type CliMode = 'solo' | 'versus';
 
 interface CliOptions {
   games: number;
   render: boolean;
   renderEvery: number;
+  mode: CliMode;
   weightsPath: string;
+  weightsP1Path: string;
+  weightsP2Path: string;
+  maxVersusSteps: number;
 }
 
 const CELL_CHARS = [' ', 'I', 'O', 'T', 'S', 'Z', 'J', 'L', '*'];
@@ -28,12 +35,34 @@ function parseOptions(): CliOptions {
     }
     return fallback;
   };
+  const getString = (flag: string, fallback: string): string => {
+    const index = args.indexOf(flag);
+    if (index >= 0 && index + 1 < args.length) {
+      return args[index + 1] ?? fallback;
+    }
+    return fallback;
+  };
   const hasFlag = (flag: string): boolean => args.includes(flag);
+  const modeValue = getString('--mode', 'solo').toLowerCase();
+  const mode: CliMode = hasFlag('--versus') || modeValue === 'versus' ? 'versus' : 'solo';
   return {
     games: getNumber('--games', 1),
     render: hasFlag('--render'),
     renderEvery: getNumber('--render-every', 10),
-    weightsPath: process.env.WEIGHTS_PATH ?? 'weights.json',
+    mode,
+    weightsPath: getString('--weights', process.env.WEIGHTS_PATH ?? 'weights.json'),
+    weightsP1Path: getString(
+      '--weights-p1',
+      process.env.WEIGHTS_P1_PATH ?? 'weights_p1.json',
+    ),
+    weightsP2Path: getString(
+      '--weights-p2',
+      process.env.WEIGHTS_P2_PATH ?? 'weights_p2.json',
+    ),
+    maxVersusSteps: getNumber(
+      '--versus-max-steps',
+      Number(process.env.VERSUS_MAX_STEPS ?? 2000),
+    ),
   };
 }
 
@@ -116,6 +145,14 @@ function renderBoard(game: TetrisGame): string {
   return visibleRows.join('\n');
 }
 
+function renderVersusState(environment: VersusEnvironment): string {
+  const headerP1 = '--- Player 1 ---';
+  const headerP2 = '--- Player 2 ---';
+  const boardP1 = renderBoard(environment.getGame(0));
+  const boardP2 = renderBoard(environment.getGame(1));
+  return `${headerP1}\n${boardP1}\n${headerP2}\n${boardP2}`;
+}
+
 function playGame(agent: PatternInferenceAgent, options: CliOptions): void {
   const game = new TetrisGame();
   let steps = 0;
@@ -142,8 +179,90 @@ function playGame(agent: PatternInferenceAgent, options: CliOptions): void {
   );
 }
 
+function playVersusGame(
+  agentP1: PatternInferenceAgent,
+  agentP2: PatternInferenceAgent,
+  options: CliOptions,
+): void {
+  const environment = new VersusEnvironment();
+  let stepCounter = 0;
+  while (!environment.hasEnded()) {
+    const snapshotP1 = environment.getPlayerSnapshot(0);
+    const snapshotP2 = environment.getPlayerSnapshot(1);
+    if (
+      snapshotP1.moves >= options.maxVersusSteps &&
+      snapshotP2.moves >= options.maxVersusSteps
+    ) {
+      break;
+    }
+    const order: (0 | 1)[] = [0, 1];
+    for (const playerIndex of order) {
+      const snapshot = environment.getPlayerSnapshot(playerIndex);
+      if (snapshot.moves >= options.maxVersusSteps) {
+        continue;
+      }
+      environment.actWithAgent(
+        playerIndex,
+        playerIndex === 0 ? agentP1 : agentP2,
+      );
+      stepCounter += 1;
+      if (options.render && stepCounter % options.renderEvery === 0) {
+        // eslint-disable-next-line no-console
+        console.log(renderVersusState(environment));
+      }
+      if (environment.hasEnded()) {
+        break;
+      }
+    }
+  }
+  if (options.render) {
+    // eslint-disable-next-line no-console
+    console.log(renderVersusState(environment));
+  }
+
+  const winner = environment.winner();
+  const resultLabel =
+    winner === null ? 'Draw' : winner === 0 ? 'Player 1 wins' : 'Player 2 wins';
+  const statsP1 = environment.getGame(0).getStats();
+  const statsP2 = environment.getGame(1).getStats();
+  const snapshotP1 = environment.getPlayerSnapshot(0);
+  const snapshotP2 = environment.getPlayerSnapshot(1);
+
+  // eslint-disable-next-line no-console
+  console.log(`[Versus] ${resultLabel}`);
+  // eslint-disable-next-line no-console
+  console.log(
+    `P1 score=${statsP1.score} lines=${statsP1.lines} garbageSent=${snapshotP1.totalGarbageSent} garbageRecv=${snapshotP1.totalGarbageReceived} moves=${snapshotP1.moves}`,
+  );
+  // eslint-disable-next-line no-console
+  console.log(
+    `P2 score=${statsP2.score} lines=${statsP2.lines} garbageSent=${snapshotP2.totalGarbageSent} garbageRecv=${snapshotP2.totalGarbageReceived} moves=${snapshotP2.moves}`,
+  );
+}
+
 function main(): void {
   const options = parseOptions();
+  if (options.mode === 'versus') {
+    const evaluatorP1 = loadEvaluator(options.weightsP1Path);
+    const evaluatorP2 = loadEvaluator(options.weightsP2Path);
+    const agentP1 = new PatternInferenceAgent(evaluatorP1, {
+      enableHold: true,
+      explorationRate: 0,
+    });
+    const agentP2 = new PatternInferenceAgent(evaluatorP2, {
+      enableHold: true,
+      explorationRate: 0,
+    });
+    for (let i = 0; i < options.games; i += 1) {
+      if (options.games > 1) {
+        // eslint-disable-next-line no-console
+        console.log(`\n=== Versus Game ${i + 1}/${options.games} ===`);
+      }
+      playVersusGame(agentP1, agentP2, options);
+    }
+    return;
+  }
+
   const evaluator = loadEvaluator(options.weightsPath);
   const agent = new PatternInferenceAgent(evaluator, {
     enableHold: true,

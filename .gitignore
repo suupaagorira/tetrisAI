@@ -30,4 +30,4 @@ Thumbs.db
 *.code-workspace
 
 # Training artifacts
-weights.json
+weights*.json

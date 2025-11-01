@@ -50,6 +50,19 @@ const B2B_ELIGIBLE: ClearType[] = [
   'tspin-triple',
 ];
 
+const GARBAGE_TABLE: Record<ClearType, number> = {
+  none: 0,
+  single: 0,
+  double: 1,
+  triple: 2,
+  tetris: 4,
+  'tspin-mini': 0,
+  tspin: 0,
+  'tspin-single': 2,
+  'tspin-double': 4,
+  'tspin-triple': 6,
+};
+
 interface InternalState {
   board: MatrixBoard;
   bag: BagGenerator;
@@ -323,6 +336,31 @@ export class TetrisGame {
     }
   }
 
+  injectGarbage(lines: number, random: () => number = Math.random): void {
+    if (this.finished || lines <= 0) {
+      return;
+    }
+    const width = this.board.width;
+    const garbageValue = 8 as Cell;
+    for (let i = 0; i < lines; i += 1) {
+      if (this.board.cells.length === 0) {
+        break;
+      }
+      this.board.cells.shift();
+      const holeColumn = Math.max(
+        0,
+        Math.min(width - 1, Math.floor(random() * width)),
+      );
+      const newRow = new Array<Cell>(width).fill(garbageValue);
+      newRow[holeColumn] = 0;
+      this.board.cells.push(newRow);
+    }
+    if (this.active && !this.canPlace(this.active)) {
+      this.finished = true;
+      this.active = null;
+    }
+  }
+
   canPlace(piece: Piece): boolean {
     const cells = getAbsoluteCells(piece.type, piece.rotation, piece.position);
     return cells.every(({ x, y }) => {
@@ -348,12 +386,13 @@ export class TetrisGame {
     const cellValue = PIECE_VALUE[this.active.type] as Cell;
     this.board.lockPiece(cells, cellValue);
     const { clearedRows } = this.board.clearLines();
-    const clearType = this.evaluateClearType(this.active, clearedRows.length);
-    const baseScore = this.calculateScore(clearType, clearedRows.length);
+    const linesCleared = clearedRows.length;
+    const clearType = this.evaluateClearType(this.active, linesCleared);
+    const baseScore = this.calculateScore(clearType, linesCleared);
     let totalScore = baseScore;
 
-    if (clearedRows.length > 0) {
-      this.statsValue.lines += clearedRows.length;
+    if (linesCleared > 0) {
+      this.statsValue.lines += linesCleared;
       this.statsValue.level = 1 + Math.floor(this.statsValue.lines / 10);
       this.statsValue.combo =
         this.statsValue.combo < 0 ? 1 : this.statsValue.combo + 1;
@@ -369,23 +408,32 @@ export class TetrisGame {
         backToBackAwarded = true;
       }
       this.statsValue.backToBack = true;
-    } else if (clearedRows.length > 0) {
+    } else if (linesCleared > 0) {
       this.statsValue.backToBack = false;
     }
 
-    if (clearedRows.length > 0 && this.statsValue.combo > 1) {
+    if (linesCleared > 0 && this.statsValue.combo > 1) {
       totalScore += (this.statsValue.combo - 1) * 50;
     }
 
     this.statsValue.score += totalScore;
     this.statsValue.totalPieces += 1;
 
+    const comboCount = this.statsValue.combo;
+    const garbageSent = this.calculateGarbageSent(
+      clearType,
+      linesCleared,
+      backToBackAwarded,
+      comboCount,
+    );
+
     const result: ClearResult = {
-      linesCleared: clearedRows.length,
+      linesCleared,
       clearType,
       backToBackAwarded,
-      combo: this.statsValue.combo,
+      combo: comboCount,
       scoreGained: totalScore,
+      garbageSent,
     };
 
     this.active = null;
@@ -497,6 +545,25 @@ export class TetrisGame {
     }
     const base = SCORE_TABLE[type] ?? 0;
     return base * this.statsValue.level;
+  }
+
+  private calculateGarbageSent(
+    type: ClearType,
+    linesCleared: number,
+    backToBackAwarded: boolean,
+    combo: number,
+  ): number {
+    if (linesCleared <= 0) {
+      return 0;
+    }
+    let garbage = GARBAGE_TABLE[type] ?? 0;
+    if (backToBackAwarded && garbage > 0) {
+      garbage += 1;
+    }
+    if (combo > 1) {
+      garbage += Math.floor((combo - 1) / 2);
+    }
+    return garbage;
   }
 
   private spawnNext(): void {

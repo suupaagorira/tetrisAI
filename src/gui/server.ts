@@ -1,11 +1,12 @@
+import { build, context, type BuildOptions } from 'esbuild';
 import express from 'express';
 import fs from 'fs';
 import path from 'path';
 import { Worker } from 'worker_threads';
-import { build, context, type BuildOptions } from 'esbuild';
 
 import { DEFAULT_WEIGHTS, EvaluatorConfig } from '../ai/evaluator';
 import type { EpisodeSummary, TrainingRunResult } from '../training/engine';
+import type { VersusTrainingRunResult } from '../training/versus_engine';
 
 type BuildContext = Awaited<ReturnType<typeof context>>;
 const activeWatchContexts: BuildContext[] = [];
@@ -16,6 +17,19 @@ const TRAIN_MAX_STEPS = Number(process.env.GUI_TRAIN_MAX_STEPS ?? 5000);
 const TRAIN_GAMMA = Number(process.env.GUI_TRAIN_GAMMA ?? 0.99);
 const TRAIN_LEARNING_RATE = Number(process.env.GUI_TRAIN_LR ?? 0.001);
 const TRAIN_EXPLORATION = Number(process.env.GUI_TRAIN_EXPLORATION ?? 0.05);
+
+const VERSUS_TRAIN_EPISODES = Number(process.env.GUI_VERSUS_TRAIN_EPISODES ?? 5);
+const VERSUS_TRAIN_MAX_STEPS = Number(process.env.GUI_VERSUS_TRAIN_MAX_STEPS ?? 2000);
+const VERSUS_TRAIN_GAMMA = Number(process.env.GUI_VERSUS_TRAIN_GAMMA ?? 0.99);
+const VERSUS_TRAIN_LR_P1 = Number(process.env.GUI_VERSUS_TRAIN_LR_P1 ?? 0.001);
+const VERSUS_TRAIN_LR_P2 = Number(process.env.GUI_VERSUS_TRAIN_LR_P2 ?? 0.001);
+const VERSUS_TRAIN_EXPLORATION_P1 = Number(
+  process.env.GUI_VERSUS_TRAIN_EXPLORATION_P1 ?? 0.02,
+);
+const VERSUS_TRAIN_EXPLORATION_P2 = Number(
+  process.env.GUI_VERSUS_TRAIN_EXPLORATION_P2 ?? 0.02,
+);
+const VERSUS_TRAIN_SEED_BASE = Number(process.env.GUI_VERSUS_TRAIN_SEED_BASE ?? 1000);
 
 interface TrainingStatus {
   running: boolean;
@@ -52,6 +66,43 @@ const trainingController: TrainingController = {
   },
 };
 
+interface VersusTrainingStatus {
+  running: boolean;
+  cycle: number;
+  episodesPerBatch: number;
+  averageScore: { p1: number; p2: number };
+  averageLines: { p1: number; p2: number };
+  wins: { p1: number; p2: number; ties: number };
+  previewBoardP1: number[][];
+  previewBoardP2: number[][];
+  updatedAt: string | null;
+  message?: string;
+}
+
+interface VersusTrainingController {
+  running: boolean;
+  stopRequested: boolean;
+  status: VersusTrainingStatus;
+  loopPromise: Promise<void> | null;
+}
+
+const versusTrainingController: VersusTrainingController = {
+  running: false,
+  stopRequested: false,
+  loopPromise: null,
+  status: {
+    running: false,
+    cycle: 0,
+    episodesPerBatch: VERSUS_TRAIN_EPISODES,
+    averageScore: { p1: 0, p2: 0 },
+    averageLines: { p1: 0, p2: 0 },
+    wins: { p1: 0, p2: 0, ties: 0 },
+    previewBoardP1: [],
+    previewBoardP2: [],
+    updatedAt: null,
+  },
+};
+
 async function ensureDir(dir: string): Promise<void> {
   await fs.promises.mkdir(dir, { recursive: true });
 }
@@ -76,6 +127,22 @@ async function bundleClient(projectRoot: string, watch = false): Promise<void> {
     },
   };
 
+  const versusOptions: BuildOptions = {
+    entryPoints: [path.resolve(projectRoot, 'src', 'gui', 'versus_client.ts')],
+    outfile: path.join(outDir, 'versus_client.js'),
+    bundle: true,
+    sourcemap: true,
+    platform: 'browser',
+    target: ['es2018'],
+    format: 'esm',
+    logLevel: 'info',
+    define: {
+      'process.env.NODE_ENV': JSON.stringify(
+        process.env.NODE_ENV ?? (watch ? 'development' : 'production'),
+      ),
+    },
+  };
+
   const workerOptions: BuildOptions = {
     entryPoints: [path.resolve(projectRoot, 'src', 'gui', 'train_worker.ts')],
     outfile: path.join(outDir, 'train_worker.js'),
@@ -84,6 +151,18 @@ async function bundleClient(projectRoot: string, watch = false): Promise<void> {
     target: ['node20'],
     format: 'cjs',
     logLevel: 'info',
+    external: ['worker_threads'],
+  };
+
+  const versusWorkerOptions: BuildOptions = {
+    entryPoints: [path.resolve(projectRoot, 'src', 'gui', 'versus_train_worker.ts')],
+    outfile: path.join(outDir, 'versus_train_worker.js'),
+    bundle: true,
+    platform: 'node',
+    target: ['node20'],
+    format: 'cjs',
+    logLevel: 'info',
+    external: ['worker_threads'],
   };
 
   if (watch) {
@@ -91,12 +170,22 @@ async function bundleClient(projectRoot: string, watch = false): Promise<void> {
     await clientCtx.watch();
     activeWatchContexts.push(clientCtx);
 
+    const versusCtx = await context(versusOptions);
+    await versusCtx.watch();
+    activeWatchContexts.push(versusCtx);
+
     const workerCtx = await context(workerOptions);
     await workerCtx.watch();
     activeWatchContexts.push(workerCtx);
+
+    const versusWorkerCtx = await context(versusWorkerOptions);
+    await versusWorkerCtx.watch();
+    activeWatchContexts.push(versusWorkerCtx);
   } else {
     await build(clientOptions);
+    await build(versusOptions);
     await build(workerOptions);
+    await build(versusWorkerOptions);
   }
 }
 
@@ -109,8 +198,11 @@ function normaliseWeights(config?: EvaluatorConfig): EvaluatorConfig {
   };
 }
 
-async function loadWeights(projectRoot: string): Promise<EvaluatorConfig> {
-  const file = path.resolve(projectRoot, 'weights.json');
+async function loadWeightsFile(
+  projectRoot: string,
+  fileName: string,
+): Promise<EvaluatorConfig> {
+  const file = path.resolve(projectRoot, fileName);
   try {
     const raw = await fs.promises.readFile(file, 'utf-8');
     const parsed = JSON.parse(raw) as EvaluatorConfig;
@@ -120,11 +212,44 @@ async function loadWeights(projectRoot: string): Promise<EvaluatorConfig> {
   }
 }
 
+async function loadWeights(projectRoot: string): Promise<EvaluatorConfig> {
+  return loadWeightsFile(projectRoot, 'weights.json');
+}
+
+async function loadVersusWeights(projectRoot: string): Promise<{
+  p1: EvaluatorConfig;
+  p2: EvaluatorConfig;
+}> {
+  const [p1, p2] = await Promise.all([
+    loadWeightsFile(projectRoot, 'weights_p1.json'),
+    loadWeightsFile(projectRoot, 'weights_p2.json'),
+  ]);
+  return { p1, p2 };
+}
+
 async function saveWeights(projectRoot: string, config: EvaluatorConfig): Promise<void> {
   const file = path.resolve(projectRoot, 'weights.json');
   await fs.promises.writeFile(file, JSON.stringify(config, null, 2), {
     encoding: 'utf-8',
   });
+}
+
+async function saveVersusWeights(
+  projectRoot: string,
+  configs: { p1: EvaluatorConfig; p2: EvaluatorConfig },
+): Promise<void> {
+  const [p1Path, p2Path] = [
+    path.resolve(projectRoot, 'weights_p1.json'),
+    path.resolve(projectRoot, 'weights_p2.json'),
+  ];
+  await Promise.all([
+    fs.promises.writeFile(p1Path, JSON.stringify(configs.p1, null, 2), {
+      encoding: 'utf-8',
+    }),
+    fs.promises.writeFile(p2Path, JSON.stringify(configs.p2, null, 2), {
+      encoding: 'utf-8',
+    }),
+  ]);
 }
 
 function averageEvaluatorConfigs(configs: EvaluatorConfig[]): EvaluatorConfig {
@@ -273,7 +398,100 @@ async function runTrainingLoop(projectRoot: string, workerPath: string): Promise
   trainingController.loopPromise = null;
 }
 
-function createServer(projectRoot: string, workerPath: string) {
+async function runVersusTrainingBatch(
+  workerPath: string,
+  baseConfig: { p1: EvaluatorConfig; p2: EvaluatorConfig },
+): Promise<VersusTrainingRunResult> {
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(workerPath, {
+      workerData: {
+        baseConfigP1: baseConfig.p1,
+        baseConfigP2: baseConfig.p2,
+        options: {
+          episodes: VERSUS_TRAIN_EPISODES,
+          maxSteps: VERSUS_TRAIN_MAX_STEPS,
+          gamma: VERSUS_TRAIN_GAMMA,
+          learningRateP1: VERSUS_TRAIN_LR_P1,
+          learningRateP2: VERSUS_TRAIN_LR_P2,
+          explorationRateP1: VERSUS_TRAIN_EXPLORATION_P1,
+          explorationRateP2: VERSUS_TRAIN_EXPLORATION_P2,
+          seedBase: VERSUS_TRAIN_SEED_BASE,
+        },
+      },
+    });
+    worker.once('message', (message: VersusTrainingRunResult | { error: string }) => {
+      if ('error' in message) {
+        reject(new Error(message.error));
+      } else {
+        resolve(message);
+      }
+    });
+    worker.once('error', (error) => {
+      reject(error);
+    });
+    worker.once('exit', (code) => {
+      if (code !== 0) {
+        reject(new Error(`Versus training worker exited with code ${code}`));
+      }
+    });
+  });
+}
+
+async function runVersusTrainingLoop(
+  projectRoot: string,
+  workerPath: string,
+): Promise<void> {
+  if (versusTrainingController.running) {
+    return;
+  }
+  versusTrainingController.running = true;
+  versusTrainingController.stopRequested = false;
+  versusTrainingController.status.running = true;
+
+  while (!versusTrainingController.stopRequested) {
+    try {
+      const baseConfig = await loadVersusWeights(projectRoot);
+      const batch = await runVersusTrainingBatch(workerPath, baseConfig);
+      await saveVersusWeights(projectRoot, {
+        p1: batch.evaluatorConfigP1,
+        p2: batch.evaluatorConfigP2,
+      });
+
+      versusTrainingController.status.cycle += 1;
+      versusTrainingController.status.averageScore = {
+        p1: batch.averages.p1.score,
+        p2: batch.averages.p2.score,
+      };
+      versusTrainingController.status.averageLines = {
+        p1: batch.averages.p1.lines,
+        p2: batch.averages.p2.lines,
+      };
+      versusTrainingController.status.wins = { ...batch.winCounts };
+      const lastSummary =
+        batch.summaries[batch.summaries.length - 1] ?? batch.summaries[0];
+      versusTrainingController.status.previewBoardP1 = lastSummary?.p1.board ?? [];
+      versusTrainingController.status.previewBoardP2 = lastSummary?.p2.board ?? [];
+      versusTrainingController.status.updatedAt = new Date().toISOString();
+      delete versusTrainingController.status.message;
+    } catch (error) {
+      versusTrainingController.status.message =
+        error instanceof Error ? error.message : String(error);
+      // eslint-disable-next-line no-console
+      console.error('Versus training batch failed:', error);
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+    }
+  }
+
+  versusTrainingController.running = false;
+  versusTrainingController.status.running = false;
+  versusTrainingController.loopPromise = null;
+}
+
+function createServer(
+  projectRoot: string,
+  workerPath: string,
+  versusWorkerPath: string,
+) {
   const app = express();
   const publicDir = path.resolve(projectRoot, 'public');
   const assetsDir = path.resolve(projectRoot, 'dist', 'gui');
@@ -301,6 +519,38 @@ function createServer(projectRoot: string, workerPath: string) {
     res.json(trainingController.status);
   });
 
+  app.post('/api/versus/train/start', async (_req, res) => {
+    if (versusTrainingController.running) {
+      res.json({ status: versusTrainingController.status });
+      return;
+    }
+    versusTrainingController.loopPromise = runVersusTrainingLoop(
+      projectRoot,
+      versusWorkerPath,
+    );
+    res.json({ status: versusTrainingController.status });
+  });
+
+  app.post('/api/versus/train/stop', (_req, res) => {
+    versusTrainingController.stopRequested = true;
+    res.json({ status: versusTrainingController.status });
+  });
+
+  app.get('/api/versus/train/status', (_req, res) => {
+    res.json(versusTrainingController.status);
+  });
+
+  app.get('/api/versus/weights', async (_req, res) => {
+    try {
+      const weights = await loadVersusWeights(projectRoot);
+      res.json(weights);
+    } catch (error) {
+      res
+        .status(500)
+        .json({ error: 'Failed to load versus weights', details: String(error) });
+    }
+  });
+
   app.use((_req, res) => {
     res.status(404).send('Not Found');
   });
@@ -315,7 +565,13 @@ async function main(): Promise<void> {
 
   await bundleClient(projectRoot, watch);
   const workerPath = path.resolve(projectRoot, 'dist', 'gui', 'train_worker.js');
-  const app = createServer(projectRoot, workerPath);
+  const versusWorkerPath = path.resolve(
+    projectRoot,
+    'dist',
+    'gui',
+    'versus_train_worker.js',
+  );
+  const app = createServer(projectRoot, workerPath, versusWorkerPath);
   app.listen(port, () => {
     // eslint-disable-next-line no-console
     console.log(

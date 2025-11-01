@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <title>Tetris AI Versus Arena</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap"
+    />
+  </head>
+  <body class="versus-body">
+    <div class="versus-layout">
+      <header class="versus-header">
+        <div>
+          <h1>VERSUS ARENA</h1>
+          <p class="versus-subtitle">AI vs AI | Garbage battle</p>
+        </div>
+        <div class="versus-header__weights">
+          <div>P1 Weights: <span id="versus-weight-p1">weights_p1.json</span></div>
+          <div>P2 Weights: <span id="versus-weight-p2">weights_p2.json</span></div>
+        </div>
+        <div class="versus-header__status">
+          <div>Match <span id="versus-match-number">1</span></div>
+          <div id="versus-status">Loading weights...</div>
+        </div>
+      </header>
+
+      <section class="versus-controls">
+        <div class="versus-controls__buttons">
+          <button id="btn-versus-play" type="button">開始</button>
+          <button id="btn-versus-pause" type="button" disabled>一時停止</button>
+          <button id="btn-versus-step" type="button">1手進める</button>
+          <button id="btn-versus-reset" type="button">リセット</button>
+          <button id="btn-versus-loop" type="button" data-active="false">
+            オートループ: OFF
+          </button>
+        </div>
+        <label class="versus-controls__speed">
+          速度:
+          <input id="versus-speed" type="range" min="1" max="5" step="1" value="3" />
+          <span id="versus-speed-label">標準 (220ms)</span>
+        </label>
+      </section>
+
+      <section class="versus-train">
+        <header class="versus-train__header">
+          <h2>VERSUS TRAINING</h2>
+          <div class="versus-train__controls">
+            <button id="btn-versus-train-start" type="button">トレーニング開始</button>
+            <button id="btn-versus-train-stop" type="button" disabled>停止</button>
+            <button id="btn-versus-reload-weights" type="button">ウェイト再読込</button>
+          </div>
+          <span id="versus-train-status-label">停止中</span>
+        </header>
+        <div class="versus-train__body">
+          <div class="versus-train__stats">
+            <div>
+              <dt>Cycle</dt>
+              <dd id="versus-train-cycle">0</dd>
+            </div>
+            <div>
+              <dt>Avg Score P1</dt>
+              <dd id="versus-train-avg-score-p1">0</dd>
+            </div>
+            <div>
+              <dt>Avg Score P2</dt>
+              <dd id="versus-train-avg-score-p2">0</dd>
+            </div>
+            <div>
+              <dt>Avg Lines P1</dt>
+              <dd id="versus-train-avg-lines-p1">0</dd>
+            </div>
+            <div>
+              <dt>Avg Lines P2</dt>
+              <dd id="versus-train-avg-lines-p2">0</dd>
+            </div>
+            <div>
+              <dt>Wins</dt>
+              <dd id="versus-train-wins">P1 0 / P2 0 / 引き分け 0</dd>
+            </div>
+            <div class="versus-train__updated">
+              <dt>更新</dt>
+              <dd id="versus-train-updated-at">-</dd>
+            </div>
+          </div>
+          <div class="versus-train__preview">
+            <div class="versus-train__preview-board">
+              <span>P1 PREVIEW</span>
+              <canvas id="versus-train-preview-p1" width="160" height="240"></canvas>
+            </div>
+            <div class="versus-train__preview-board">
+              <span>P2 PREVIEW</span>
+              <canvas id="versus-train-preview-p2" width="160" height="240"></canvas>
+            </div>
+          </div>
+        </div>
+        <p class="versus-train__message" id="versus-train-message"></p>
+      </section>
+
+      <main class="versus-main">
+        <section class="versus-player" id="versus-player-1" data-player="1">
+          <header class="versus-player__header">
+            <h2>PLAYER 1</h2>
+            <span class="versus-player__tag">攻撃側</span>
+          </header>
+          <canvas
+            id="versus-board-p1"
+            class="versus-board"
+            width="320"
+            height="640"
+          ></canvas>
+          <dl class="versus-stats">
+            <div>
+              <dt>Score</dt>
+              <dd id="versus-p1-score">0</dd>
+            </div>
+            <div>
+              <dt>Lines</dt>
+              <dd id="versus-p1-lines">0</dd>
+            </div>
+            <div>
+              <dt>Garbage Sent</dt>
+              <dd id="versus-p1-garbage-sent">0</dd>
+            </div>
+            <div>
+              <dt>Incoming</dt>
+              <dd id="versus-p1-incoming">0</dd>
+            </div>
+            <div>
+              <dt>Garbage Recv</dt>
+              <dd id="versus-p1-garbage-recv">0</dd>
+            </div>
+            <div>
+              <dt>Moves</dt>
+              <dd id="versus-p1-moves">0</dd>
+            </div>
+            <div class="versus-stats__status">
+              <dt>Status</dt>
+              <dd id="versus-p1-status">Ready</dd>
+            </div>
+          </dl>
+        </section>
+
+        <section class="versus-player" id="versus-player-2" data-player="2">
+          <header class="versus-player__header">
+            <h2>PLAYER 2</h2>
+            <span class="versus-player__tag">防御側</span>
+          </header>
+          <canvas
+            id="versus-board-p2"
+            class="versus-board"
+            width="320"
+            height="640"
+          ></canvas>
+          <dl class="versus-stats">
+            <div>
+              <dt>Score</dt>
+              <dd id="versus-p2-score">0</dd>
+            </div>
+            <div>
+              <dt>Lines</dt>
+              <dd id="versus-p2-lines">0</dd>
+            </div>
+            <div>
+              <dt>Garbage Sent</dt>
+              <dd id="versus-p2-garbage-sent">0</dd>
+            </div>
+            <div>
+              <dt>Incoming</dt>
+              <dd id="versus-p2-incoming">0</dd>
+            </div>
+            <div>
+              <dt>Garbage Recv</dt>
+              <dd id="versus-p2-garbage-recv">0</dd>
+            </div>
+            <div>
+              <dt>Moves</dt>
+              <dd id="versus-p2-moves">0</dd>
+            </div>
+            <div class="versus-stats__status">
+              <dt>Status</dt>
+              <dd id="versus-p2-status">Ready</dd>
+            </div>
+          </dl>
+        </section>
+      </main>
+
+      <section class="versus-log">
+        <header>
+          <h2>イベントログ</h2>
+          <button id="btn-versus-clear-log" type="button">クリア</button>
+        </header>
+        <ul id="versus-log-list" class="versus-log__list">
+          <li class="versus-log__item">ログはここに表示されます。</li>
+        </ul>
+      </section>
+    </div>
+    <script src="/assets/versus_client.js" type="module"></script>
+  </body>
+</html>

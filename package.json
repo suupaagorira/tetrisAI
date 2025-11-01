@@ -6,7 +6,9 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "start": "tsx src/cli/main.ts",
+    "start:versus": "tsx src/cli/main.ts --mode versus",
     "train": "tsx src/training/offline_trainer.ts",
+    "train:versus": "tsx src/training/versus_trainer.ts",
     "test": "vitest run",
     "lint": "tsc --noEmit",
     "gui": "tsx src/gui/server.ts",

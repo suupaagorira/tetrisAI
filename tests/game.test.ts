@@ -59,6 +59,7 @@ describe('Feature extraction', () => {
       backToBackAwarded: false,
       combo: -1,
       scoreGained: 0,
+      garbageSent: 0,
     };
     const features = computeFeatures(board, stats, clear, 0);
     expect(features.values.bias).toBe(1);

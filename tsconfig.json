@@ -29,5 +29,11 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true
   },
-  "exclude": ["tests", "dist", "vitest.config.ts", "src/gui/client.ts"]
+  "exclude": [
+    "tests",
+    "dist",
+    "vitest.config.ts",
+    "src/gui/client.ts",
+    "src/gui/versus_client.ts"
+  ]
 }
