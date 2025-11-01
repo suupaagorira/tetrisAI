@@ -1,5 +1,5 @@
 import { TetrisGame } from '../core/game';
-import { LinearEvaluator, EvaluatorConfig } from '../ai/evaluator';
+import { LinearEvaluator, AdaptiveEvaluator, EvaluatorConfig } from '../ai/evaluator';
 import { PatternInferenceAgent } from '../ai/agent';
 import {
   cloneFeatures,
@@ -71,7 +71,7 @@ export function runTrainingEpisodes(options: TrainingOptions): TrainingRunResult
   const initialConfig = normaliseConfig(options.initialWeights, options.learningRate);
   const effectiveLearningRate = options.learningRate;
   const bias = initialConfig.bias ?? 0;
-  const evaluator = new LinearEvaluator({
+  const evaluator = new AdaptiveEvaluator({
     weights: initialConfig.weights,
     bias,
     learningRate: effectiveLearningRate,
