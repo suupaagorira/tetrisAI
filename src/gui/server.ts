@@ -26,10 +26,10 @@ const VERSUS_TRAIN_GAMMA = Number(process.env.GUI_VERSUS_TRAIN_GAMMA ?? 0.99);
 const VERSUS_TRAIN_LR_P1 = Number(process.env.GUI_VERSUS_TRAIN_LR_P1 ?? 0.001);
 const VERSUS_TRAIN_LR_P2 = Number(process.env.GUI_VERSUS_TRAIN_LR_P2 ?? 0.001);
 const VERSUS_TRAIN_EXPLORATION_P1 = Number(
-  process.env.GUI_VERSUS_TRAIN_EXPLORATION_P1 ?? 0.02,
+  process.env.GUI_VERSUS_TRAIN_EXPLORATION_P1 ?? 0,
 );
 const VERSUS_TRAIN_EXPLORATION_P2 = Number(
-  process.env.GUI_VERSUS_TRAIN_EXPLORATION_P2 ?? 0.02,
+  process.env.GUI_VERSUS_TRAIN_EXPLORATION_P2 ?? 0,
 );
 const VERSUS_TRAIN_SEED_BASE = Number(process.env.GUI_VERSUS_TRAIN_SEED_BASE ?? 1000);
 
@@ -543,10 +543,19 @@ async function runVersusTrainingLoop(
         p2: batch.averages.p2.lines,
       };
       versusTrainingController.status.wins = { ...batch.winCounts };
-      const lastSummary =
-        batch.summaries[batch.summaries.length - 1] ?? batch.summaries[0];
-      versusTrainingController.status.previewBoardP1 = lastSummary?.p1.board ?? [];
-      versusTrainingController.status.previewBoardP2 = lastSummary?.p2.board ?? [];
+      // Find the best episode (highest combined score) instead of last episode
+      let bestSummary = batch.summaries[0];
+      for (const summary of batch.summaries) {
+        if (
+          bestSummary &&
+          summary.p1.score + summary.p2.score >
+            bestSummary.p1.score + bestSummary.p2.score
+        ) {
+          bestSummary = summary;
+        }
+      }
+      versusTrainingController.status.previewBoardP1 = bestSummary?.p1.board ?? [];
+      versusTrainingController.status.previewBoardP2 = bestSummary?.p2.board ?? [];
       versusTrainingController.status.updatedAt = new Date().toISOString();
       delete versusTrainingController.status.message;
     } catch (error) {

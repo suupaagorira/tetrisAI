@@ -86,7 +86,7 @@ function runMatch(
   const garbageSeed = seedBase + episodeIndex * 3571;
   const environment = new VersusEnvironment({
     seedP1: seed,
-    seedP2: seed,
+    seedP2: seed ^ 0x5f5f5f, // Different seed for P2 to match normal play mode
     garbageSeed,
   });
 
