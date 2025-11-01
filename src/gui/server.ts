@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { build, context, type BuildOptions } from 'esbuild';
 import express from 'express';
 import fs from 'fs';
@@ -635,7 +636,7 @@ function createServer(
 
 async function main(): Promise<void> {
   const projectRoot = path.resolve(__dirname, '..', '..');
-  const port = Number(process.env.GUI_PORT ?? 5173);
+  const port = Number(process.env.PORT ?? 5173);
   const watch = process.argv.includes('--watch');
 
   await bundleClient(projectRoot, watch);
