@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <title>Strategic AI Versus - Tetris AI</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap"
+    />
+    <style>
+      .strategic-layout {
+        display: grid;
+        grid-template-columns: 1fr 2fr 1fr;
+        gap: 20px;
+        padding: 20px;
+        max-width: 1800px;
+        margin: 0 auto;
+        background: #0a0e27;
+        min-height: 100vh;
+      }
+
+      .strategic-header {
+        grid-column: 1 / -1;
+        text-align: center;
+        padding: 20px;
+        background: linear-gradient(135deg, #1a1f3a 0%, #2d3561 100%);
+        border-radius: 10px;
+        border: 2px solid #00ffff;
+      }
+
+      .strategic-header h1 {
+        font-size: 2.5em;
+        color: #00ffff;
+        text-shadow: 0 0 20px #00ffff;
+        margin: 0;
+      }
+
+      .strategic-header .subtitle {
+        color: #88aaff;
+        margin-top: 10px;
+      }
+
+      .strategic-controls {
+        grid-column: 1 / -1;
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+        flex-wrap: wrap;
+        padding: 15px;
+        background: #1a1f3a;
+        border-radius: 8px;
+      }
+
+      .strategic-controls button {
+        padding: 10px 20px;
+        font-family: 'Share Tech Mono', monospace;
+        font-size: 14px;
+        background: #2d3561;
+        color: #00ffff;
+        border: 2px solid #00ffff;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: all 0.3s;
+      }
+
+      .strategic-controls button:hover {
+        background: #00ffff;
+        color: #0a0e27;
+        box-shadow: 0 0 15px #00ffff;
+      }
+
+      .strategic-controls button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      .player-section {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+      }
+
+      .player-header {
+        text-align: center;
+        padding: 15px;
+        background: linear-gradient(135deg, #2d3561 0%, #3a4578 100%);
+        border-radius: 8px;
+        border: 2px solid #00ffff;
+      }
+
+      .player-header h2 {
+        color: #00ffff;
+        margin: 0;
+        font-size: 1.8em;
+        text-shadow: 0 0 10px #00ffff;
+      }
+
+      .player-board {
+        background: #1a1f3a;
+        padding: 15px;
+        border-radius: 8px;
+        border: 2px solid #4466aa;
+      }
+
+      .player-board canvas {
+        display: block;
+        margin: 0 auto;
+        border: 2px solid #00ffff;
+        border-radius: 4px;
+      }
+
+      .player-stats {
+        background: #1a1f3a;
+        padding: 15px;
+        border-radius: 8px;
+        border: 2px solid #4466aa;
+        font-family: 'Share Tech Mono', monospace;
+      }
+
+      .player-stats dl {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin: 0;
+      }
+
+      .player-stats dt {
+        color: #88aaff;
+        font-size: 12px;
+      }
+
+      .player-stats dd {
+        color: #00ffff;
+        font-weight: bold;
+        margin: 0;
+        text-align: right;
+      }
+
+      .thinking-panel {
+        background: #1a1f3a;
+        padding: 20px;
+        border-radius: 10px;
+        border: 2px solid #ff00ff;
+        box-shadow: 0 0 20px rgba(255, 0, 255, 0.3);
+        font-family: 'Share Tech Mono', monospace;
+        overflow-y: auto;
+        max-height: calc(100vh - 100px);
+      }
+
+      .thinking-panel h3 {
+        color: #ff00ff;
+        text-shadow: 0 0 10px #ff00ff;
+        margin-top: 0;
+        margin-bottom: 15px;
+        font-size: 1.3em;
+        text-align: center;
+      }
+
+      .thinking-section {
+        margin-bottom: 20px;
+        padding: 15px;
+        background: rgba(45, 53, 97, 0.5);
+        border-radius: 6px;
+        border-left: 3px solid #ff00ff;
+      }
+
+      .thinking-section h4 {
+        color: #00ffff;
+        margin: 0 0 10px 0;
+        font-size: 1em;
+        text-transform: uppercase;
+      }
+
+      .thinking-value {
+        display: flex;
+        justify-content: space-between;
+        margin: 5px 0;
+        padding: 5px;
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 3px;
+      }
+
+      .thinking-value .label {
+        color: #88aaff;
+        font-size: 13px;
+      }
+
+      .thinking-value .value {
+        color: #00ff00;
+        font-weight: bold;
+        font-size: 13px;
+      }
+
+      .strategy-badge {
+        display: inline-block;
+        padding: 5px 10px;
+        background: linear-gradient(135deg, #ff00ff 0%, #ff0088 100%);
+        color: white;
+        border-radius: 5px;
+        font-weight: bold;
+        box-shadow: 0 0 10px rgba(255, 0, 255, 0.5);
+        animation: pulse 2s ease-in-out infinite;
+      }
+
+      @keyframes pulse {
+        0%, 100% {
+          box-shadow: 0 0 10px rgba(255, 0, 255, 0.5);
+        }
+        50% {
+          box-shadow: 0 0 20px rgba(255, 0, 255, 0.8);
+        }
+      }
+
+      .template-badge {
+        display: inline-block;
+        padding: 5px 10px;
+        background: linear-gradient(135deg, #00ffff 0%, #0088ff 100%);
+        color: #0a0e27;
+        border-radius: 5px;
+        font-weight: bold;
+        margin-top: 5px;
+      }
+
+      .trigger-badge {
+        display: inline-block;
+        padding: 4px 8px;
+        background: #ff4444;
+        color: white;
+        border-radius: 4px;
+        font-size: 11px;
+        margin-top: 5px;
+      }
+
+      .latency-indicator {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px;
+        background: rgba(0, 255, 255, 0.1);
+        border-radius: 5px;
+        border: 1px solid #00ffff;
+      }
+
+      .latency-bar {
+        flex: 1;
+        height: 10px;
+        background: #1a1f3a;
+        border-radius: 5px;
+        overflow: hidden;
+        border: 1px solid #4466aa;
+      }
+
+      .latency-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #00ff00 0%, #ffff00 50%, #ff0000 100%);
+        transition: width 0.3s ease;
+      }
+
+      .center-panel {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+      }
+
+      .match-info {
+        background: #1a1f3a;
+        padding: 20px;
+        border-radius: 8px;
+        border: 2px solid #4466aa;
+        text-align: center;
+      }
+
+      .match-info .winner {
+        font-size: 2em;
+        color: #00ff00;
+        text-shadow: 0 0 20px #00ff00;
+        margin: 10px 0;
+      }
+
+      .match-log {
+        background: #1a1f3a;
+        padding: 15px;
+        border-radius: 8px;
+        border: 2px solid #4466aa;
+        flex: 1;
+        overflow-y: auto;
+      }
+
+      .match-log h4 {
+        color: #00ffff;
+        margin-top: 0;
+        margin-bottom: 10px;
+      }
+
+      .match-log ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        max-height: 300px;
+        overflow-y: auto;
+      }
+
+      .match-log li {
+        padding: 8px;
+        margin: 5px 0;
+        background: rgba(45, 53, 97, 0.5);
+        border-radius: 4px;
+        color: #88aaff;
+        font-size: 12px;
+        border-left: 3px solid #00ffff;
+      }
+
+      .match-log li.p1 {
+        border-left-color: #ff00ff;
+      }
+
+      .match-log li.p2 {
+        border-left-color: #00ffff;
+      }
+
+      .match-log li.event {
+        border-left-color: #ffff00;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="strategic-layout">
+      <header class="strategic-header">
+        <h1>⚡ STRATEGIC AI VERSUS ⚡</h1>
+        <p class="subtitle">リアルタイム思考プロセス可視化</p>
+      </header>
+
+      <section class="strategic-controls">
+        <button id="btn-start">対戦開始</button>
+        <button id="btn-pause" disabled>一時停止</button>
+        <button id="btn-step">1手進める</button>
+        <button id="btn-reset">リセット</button>
+        <label>
+          速度:
+          <select id="speed-select">
+            <option value="50">超高速</option>
+            <option value="100">高速</option>
+            <option value="200" selected>標準</option>
+            <option value="500">ゆっくり</option>
+            <option value="1000">低速</option>
+          </select>
+        </label>
+      </section>
+
+      <!-- Player 1 Thinking Panel (Left) -->
+      <aside class="thinking-panel" id="thinking-p1">
+        <h3>🧠 P1 思考プロセス</h3>
+
+        <div class="thinking-section">
+          <h4>📊 現在の戦略</h4>
+          <div class="thinking-value">
+            <span class="label">Strategy:</span>
+            <span class="strategy-badge" id="p1-strategy">B2B Pressure</span>
+          </div>
+          <div class="thinking-value">
+            <span class="label">Dwell Time:</span>
+            <span class="value" id="p1-dwell">0.0s</span>
+          </div>
+        </div>
+
+        <div class="thinking-section">
+          <h4>🎯 適用テンプレート</h4>
+          <div class="thinking-value">
+            <span class="label">Template:</span>
+            <span class="template-badge" id="p1-template">Stable Downstack</span>
+          </div>
+        </div>
+
+        <div class="thinking-section" id="p1-trigger-section" style="display: none;">
+          <h4>⚡ トリガー発動</h4>
+          <div class="thinking-value">
+            <span class="label">Trigger:</span>
+            <span class="trigger-badge" id="p1-trigger">None</span>
+          </div>
+          <div class="thinking-value">
+            <span class="label">Reason:</span>
+            <span class="value" id="p1-trigger-reason">-</span>
+          </div>
+        </div>
+
+        <div class="thinking-section">
+          <h4>📈 評価値</h4>
+          <div class="thinking-value">
+            <span class="label">Evaluation:</span>
+            <span class="value" id="p1-evaluation">0.00</span>
+          </div>
+          <div class="thinking-value">
+            <span class="label">Candidates:</span>
+            <span class="value" id="p1-candidates">0</span>
+          </div>
+          <div class="thinking-value">
+            <span class="label">Beam Width:</span>
+            <span class="value" id="p1-beam">8</span>
+          </div>
+        </div>
+
+        <div class="thinking-section">
+          <h4>⚔️ 対戦状況</h4>
+          <div class="thinking-value">
+            <span class="label">Kill Probability:</span>
+            <span class="value" id="p1-kill-prob">0%</span>
+          </div>
+          <div class="thinking-value">
+            <span class="label">Height Advantage:</span>
+            <span class="value" id="p1-height-adv">0</span>
+          </div>
+          <div class="thinking-value">
+            <span class="label">Attack Potential:</span>
+            <span class="value" id="p1-attack-pot">0%</span>
+          </div>
+        </div>
+
+        <div class="thinking-section">
+          <h4>⏱️ パフォーマンス</h4>
+          <div class="latency-indicator">
+            <span class="label">Latency:</span>
+            <div class="latency-bar">
+              <div class="latency-fill" id="p1-latency-bar" style="width: 0%"></div>
+            </div>
+            <span class="value" id="p1-latency">0ms</span>
+          </div>
+        </div>
+
+        <div class="thinking-section">
+          <h4>💭 思考根拠</h4>
+          <div style="color: #88aaff; font-size: 12px; line-height: 1.6;" id="p1-rationale">
+            待機中...
+          </div>
+        </div>
+      </aside>
+
+      <!-- Center Panel -->
+      <div class="center-panel">
+        <div class="match-info">
+          <div style="color: #88aaff; margin-bottom: 10px;">
+            Move: <span id="move-count" style="color: #00ffff;">0</span>
+          </div>
+          <div id="winner-display" class="winner" style="display: none;"></div>
+        </div>
+
+        <!-- Player 1 -->
+        <section class="player-section">
+          <div class="player-header">
+            <h2>PLAYER 1</h2>
+          </div>
+          <div class="player-board">
+            <canvas id="board-p1" width="320" height="640"></canvas>
+          </div>
+          <div class="player-stats">
+            <dl>
+              <dt>Score:</dt><dd id="p1-score">0</dd>
+              <dt>Lines:</dt><dd id="p1-lines">0</dd>
+              <dt>Combo:</dt><dd id="p1-combo">0</dd>
+              <dt>B2B:</dt><dd id="p1-b2b">-</dd>
+              <dt>Sent:</dt><dd id="p1-sent">0</dd>
+              <dt>Received:</dt><dd id="p1-recv">0</dd>
+            </dl>
+          </div>
+        </section>
+
+        <!-- Player 2 -->
+        <section class="player-section">
+          <div class="player-header">
+            <h2>PLAYER 2</h2>
+          </div>
+          <div class="player-board">
+            <canvas id="board-p2" width="320" height="640"></canvas>
+          </div>
+          <div class="player-stats">
+            <dl>
+              <dt>Score:</dt><dd id="p2-score">0</dd>
+              <dt>Lines:</dt><dd id="p2-lines">0</dd>
+              <dt>Combo:</dt><dd id="p2-combo">0</dd>
+              <dt>B2B:</dt><dd id="p2-b2b">-</dd>
+              <dt>Sent:</dt><dd id="p2-sent">0</dd>
+              <dt>Received:</dt><dd id="p2-recv">0</dd>
+            </dl>
+          </div>
+        </section>
+
+        <!-- Match Log -->
+        <div class="match-log">
+          <h4>📜 試合ログ</h4>
+          <ul id="match-log-list">
+            <li>対戦開始を待っています...</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Player 2 Thinking Panel (Right) -->
+      <aside class="thinking-panel" id="thinking-p2">
+        <h3>🧠 P2 思考プロセス</h3>
+
+        <div class="thinking-section">
+          <h4>📊 現在の戦略</h4>
+          <div class="thinking-value">
+            <span class="label">Strategy:</span>
+            <span class="strategy-badge" id="p2-strategy">B2B Pressure</span>
+          </div>
+          <div class="thinking-value">
+            <span class="label">Dwell Time:</span>
+            <span class="value" id="p2-dwell">0.0s</span>
+          </div>
+        </div>
+
+        <div class="thinking-section">
+          <h4>🎯 適用テンプレート</h4>
+          <div class="thinking-value">
+            <span class="label">Template:</span>
+            <span class="template-badge" id="p2-template">Stable Downstack</span>
+          </div>
+        </div>
+
+        <div class="thinking-section" id="p2-trigger-section" style="display: none;">
+          <h4>⚡ トリガー発動</h4>
+          <div class="thinking-value">
+            <span class="label">Trigger:</span>
+            <span class="trigger-badge" id="p2-trigger">None</span>
+          </div>
+          <div class="thinking-value">
+            <span class="label">Reason:</span>
+            <span class="value" id="p2-trigger-reason">-</span>
+          </div>
+        </div>
+
+        <div class="thinking-section">
+          <h4>📈 評価値</h4>
+          <div class="thinking-value">
+            <span class="label">Evaluation:</span>
+            <span class="value" id="p2-evaluation">0.00</span>
+          </div>
+          <div class="thinking-value">
+            <span class="label">Candidates:</span>
+            <span class="value" id="p2-candidates">0</span>
+          </div>
+          <div class="thinking-value">
+            <span class="label">Beam Width:</span>
+            <span class="value" id="p2-beam">8</span>
+          </div>
+        </div>
+
+        <div class="thinking-section">
+          <h4>⚔️ 対戦状況</h4>
+          <div class="thinking-value">
+            <span class="label">Kill Probability:</span>
+            <span class="value" id="p2-kill-prob">0%</span>
+          </div>
+          <div class="thinking-value">
+            <span class="label">Height Advantage:</span>
+            <span class="value" id="p2-height-adv">0</span>
+          </div>
+          <div class="thinking-value">
+            <span class="label">Attack Potential:</span>
+            <span class="value" id="p2-attack-pot">0%</span>
+          </div>
+        </div>
+
+        <div class="thinking-section">
+          <h4>⏱️ パフォーマンス</h4>
+          <div class="latency-indicator">
+            <span class="label">Latency:</span>
+            <div class="latency-bar">
+              <div class="latency-fill" id="p2-latency-bar" style="width: 0%"></div>
+            </div>
+            <span class="value" id="p2-latency">0ms</span>
+          </div>
+        </div>
+
+        <div class="thinking-section">
+          <h4>💭 思考根拠</h4>
+          <div style="color: #88aaff; font-size: 12px; line-height: 1.6;" id="p2-rationale">
+            待機中...
+          </div>
+        </div>
+      </aside>
+    </div>
+    <script src="/assets/strategic_client.js" type="module"></script>
+  </body>
+</html>
