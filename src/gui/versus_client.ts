@@ -942,6 +942,23 @@ async function bootstrap(): Promise<void> {
     clearLogButton: document.getElementById('btn-versus-clear-log'),
   };
 
+  const trainingElements = {
+    startButton: document.getElementById('btn-versus-train-start'),
+    stopButton: document.getElementById('btn-versus-train-stop'),
+    reloadButton: document.getElementById('btn-versus-reload-weights'),
+    statusLabel: document.getElementById('versus-train-status-label'),
+    cycleLabel: document.getElementById('versus-train-cycle'),
+    avgScoreP1: document.getElementById('versus-train-avg-score-p1'),
+    avgScoreP2: document.getElementById('versus-train-avg-score-p2'),
+    avgLinesP1: document.getElementById('versus-train-avg-lines-p1'),
+    avgLinesP2: document.getElementById('versus-train-avg-lines-p2'),
+    winsLabel: document.getElementById('versus-train-wins'),
+    updatedAtLabel: document.getElementById('versus-train-updated-at'),
+    messageLabel: document.getElementById('versus-train-message'),
+    previewCanvasP1: document.getElementById('versus-train-preview-p1'),
+    previewCanvasP2: document.getElementById('versus-train-preview-p2'),
+  };
+
   if (
     !statusEl ||
     !matchLabelEl ||
@@ -950,7 +967,8 @@ async function bootstrap(): Promise<void> {
     !player1Root ||
     !player2Root ||
     !logList ||
-    Object.values(controls).some((el) => el === null)
+    Object.values(controls).some((el) => el === null) ||
+    Object.values(trainingElements).some((el) => el === null)
   ) {
     throw new Error('Versus UI の初期化に必要な要素が足りません。');
   }
@@ -980,8 +998,7 @@ async function bootstrap(): Promise<void> {
   versusLog.clear();
   versusLog.push('Versusモードを初期化しました。', 'info');
 
-  // eslint-disable-next-line no-new
-  new VersusMatchController({
+  const matchController = new VersusMatchController({
     agents: [agentP1, agentP2],
     panels,
     statusEl,
@@ -999,6 +1016,32 @@ async function bootstrap(): Promise<void> {
     },
     maxMovesPerPlayer: 4000,
   });
+
+  const trainingClient = new VersusTrainingClient(
+    {
+      startButton: trainingElements.startButton as HTMLButtonElement,
+      stopButton: trainingElements.stopButton as HTMLButtonElement,
+      reloadButton: trainingElements.reloadButton as HTMLButtonElement,
+      statusLabel: trainingElements.statusLabel as HTMLElement,
+      cycleLabel: trainingElements.cycleLabel as HTMLElement,
+      avgScoreP1: trainingElements.avgScoreP1 as HTMLElement,
+      avgScoreP2: trainingElements.avgScoreP2 as HTMLElement,
+      avgLinesP1: trainingElements.avgLinesP1 as HTMLElement,
+      avgLinesP2: trainingElements.avgLinesP2 as HTMLElement,
+      winsLabel: trainingElements.winsLabel as HTMLElement,
+      updatedAtLabel: trainingElements.updatedAtLabel as HTMLElement,
+      messageLabel: trainingElements.messageLabel as HTMLElement,
+      previewCanvasP1: trainingElements.previewCanvasP1 as HTMLCanvasElement,
+      previewCanvasP2: trainingElements.previewCanvasP2 as HTMLCanvasElement,
+    },
+    async () => {
+      const updatedWeights = await fetchVersusWeights();
+      const [newAgentP1, newAgentP2] = createAgentsFromWeights(updatedWeights);
+      matchController.updateAgents([newAgentP1, newAgentP2]);
+    },
+  );
+
+  trainingClient.start();
   statusEl.textContent = '準備完了';
 }
 
