@@ -36,6 +36,68 @@ describe('MatrixBoard', () => {
       expect(board.get(x, targetRow)).toBe(0);
     }
   });
+
+  it('clears multiple consecutive lines correctly (Tetris)', () => {
+    const board = new MatrixBoard(STANDARD_BOARD);
+    // Fill the bottom 4 rows to simulate a Tetris clear
+    const rows = [18, 19, 20, 21];
+    for (const row of rows) {
+      for (let x = 0; x < board.width; x += 1) {
+        board.set(x, row, 1);
+      }
+    }
+
+    // Add a marker cell above the cleared lines to verify rows shift correctly
+    board.set(5, 17, 2);
+
+    const result = board.clearLines();
+    expect(result.clearedRows).toEqual(rows);
+
+    // The top 4 rows should now be empty (new rows added at top)
+    for (let y = 0; y < 4; y += 1) {
+      for (let x = 0; x < board.width; x += 1) {
+        expect(board.get(x, y)).toBe(0);
+      }
+    }
+
+    // The marker cell should have moved down 4 rows (from 17 to 21)
+    expect(board.get(5, 21)).toBe(2);
+    expect(board.get(5, 17)).toBe(0);
+  });
+
+  it('clears multiple non-consecutive lines correctly', () => {
+    const board = new MatrixBoard(STANDARD_BOARD);
+    // Fill rows 18 and 20 (with gap at 19)
+    const rows = [18, 20];
+    for (const row of rows) {
+      for (let x = 0; x < board.width; x += 1) {
+        board.set(x, row, 1);
+      }
+    }
+
+    // Add a marker in row 19 (should move down 2 after both rows cleared)
+    board.set(3, 19, 2);
+    // Add a marker above row 18 (should move down 2 after both clears)
+    board.set(4, 17, 3);
+
+    const result = board.clearLines();
+    expect(result.clearedRows).toEqual(rows);
+
+    // The top 2 rows should now be empty (new rows added at top)
+    for (let y = 0; y < 2; y += 1) {
+      for (let x = 0; x < board.width; x += 1) {
+        expect(board.get(x, y)).toBe(0);
+      }
+    }
+
+    // The marker from row 19 should now be at row 20
+    expect(board.get(3, 20)).toBe(2);
+    expect(board.get(3, 19)).toBe(0);
+
+    // The marker from row 17 should now be at row 19 (moved down 2)
+    expect(board.get(4, 19)).toBe(3);
+    expect(board.get(4, 17)).toBe(0);
+  });
 });
 
 describe('TetrisGame', () => {

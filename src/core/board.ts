@@ -89,12 +89,21 @@ export class MatrixBoard implements Board {
         clearedRows.push(y);
       }
     }
-    for (const row of clearedRows) {
+
+    // Remove cleared rows from bottom to top to avoid index shift issues
+    // Sort in descending order for deletion
+    const sortedForDeletion = [...clearedRows].sort((a, b) => b - a);
+    for (const row of sortedForDeletion) {
       this.cells.splice(row, 1);
+    }
+
+    // Add new empty rows at the top
+    for (let i = 0; i < clearedRows.length; i++) {
       this.cells.unshift(
         Array.from({ length: this.width }, () => 0 as Cell),
       );
     }
+
     return { clearedRows };
   }
 }
