@@ -10,7 +10,7 @@
     "module": "commonjs",
     "target": "es2020",
     "lib": ["es2020"],
-    "types": ["node"],
+    "types": ["node", "jest"],
 
     // Other Outputs
     "sourceMap": true,
@@ -34,6 +34,7 @@
     "dist",
     "vitest.config.ts",
     "src/gui/client.ts",
-    "src/gui/versus_client.ts"
+    "src/gui/versus_client.ts",
+    "src/gui/strategic_client.ts"
   ]
 }

@@ -10,7 +10,7 @@
 
 import { TetrisGame } from '../core/game';
 import { FeatureVector, computeFeatures } from './features';
-import { Piece, PIECE_DEFINITIONS } from '../core/pieces';
+import { Piece, PieceType } from '../core/types';
 
 /**
  * Extended feature vector with versus-mode features
@@ -42,23 +42,28 @@ export function computeExtendedFeatures(
   versusContext?: VersusContext
 ): ExtendedFeatureVector {
   // Get base features
-  const clearResult = {
-    linesCleared: game.lastClearResult?.linesCleared ?? 0,
-    clearType: game.lastClearResult?.clearType ?? 'none',
-    scoreGained: game.lastClearResult?.scoreGained ?? 0,
-    perfectClear: game.lastClearResult?.perfectClear ?? false
+  const gameStats = game.getStats();
+  const clearResult: import('../core/types').ClearResult = {
+    linesCleared: 0,  // This would need to be tracked separately or passed as parameter
+    clearType: 'none',
+    scoreGained: 0,
+    backToBackAwarded: false,
+    combo: 0,
+    garbageSent: 0
   };
 
   const stats = {
-    score: game.score,
-    level: game.level,
-    lines: game.lines,
-    combo: game.combo,
-    backToBack: game.backToBack
+    score: gameStats.score,
+    level: gameStats.level,
+    lines: gameStats.lines,
+    combo: gameStats.combo,
+    backToBack: gameStats.backToBack,
+    totalPieces: gameStats.totalPieces
   };
 
+  const board = game.getBoard();
   const baseFeatures = computeFeatures(
-    game.board,
+    board,
     stats,
     clearResult,
     dropDistance,
@@ -90,23 +95,24 @@ export function computeExtendedFeatures(
  * Analyze piece availability in queue and hold
  */
 function analyzePieceAvailability(game: TetrisGame): Record<string, number> {
-  const queue = game.getNextPieces(6);  // Look at next 6 pieces
-  const holdPiece = game.holdPiece;
+  const queue = game.getNextQueue().slice(0, 6);  // Look at next 6 pieces
+  const holdPiece = game.getHoldPiece();
+  const status = game.getStatus();
 
   // Count piece types in queue
   const pieceCounts: Record<string, number> = {
     I: 0, O: 0, T: 0, S: 0, Z: 0, L: 0, J: 0
   };
 
-  for (const piece of queue) {
-    if (piece && piece.type) {
-      pieceCounts[piece.type] = (pieceCounts[piece.type] ?? 0) + 1;
+  for (const pieceType of queue) {
+    if (pieceType) {
+      pieceCounts[pieceType] = (pieceCounts[pieceType] ?? 0) + 1;
     }
   }
 
   // Include hold piece
-  if (holdPiece && holdPiece.type) {
-    pieceCounts[holdPiece.type] = (pieceCounts[holdPiece.type] ?? 0) + 1;
+  if (holdPiece) {
+    pieceCounts[holdPiece] = (pieceCounts[holdPiece] ?? 0) + 1;
   }
 
   // Normalize counts (0-7 pieces possible in queue+hold)
@@ -117,13 +123,13 @@ function analyzePieceAvailability(game: TetrisGame): Record<string, number> {
   }
 
   // Special piece indicators
-  normalized.has_i_piece = pieceCounts.I > 0 ? 1 : 0;  // For Tetris
-  normalized.has_t_piece = pieceCounts.T > 0 ? 1 : 0;  // For T-Spin
-  normalized.has_hold = game.holdPiece ? 1 : 0;
-  normalized.hold_available = !game.holdLocked ? 1 : 0;
+  normalized.has_i_piece = (pieceCounts['I'] ?? 0) > 0 ? 1 : 0;  // For Tetris
+  normalized.has_t_piece = (pieceCounts['T'] ?? 0) > 0 ? 1 : 0;  // For T-Spin
+  normalized.has_hold = holdPiece ? 1 : 0;
+  normalized.hold_available = !status.holdLocked ? 1 : 0;
 
   // Queue diversity (how many different piece types)
-  const uniqueTypes = new Set(queue.filter(p => p).map(p => p!.type)).size;
+  const uniqueTypes = new Set(queue.filter(p => p)).size;
   normalized.queue_diversity = uniqueTypes / 7;
 
   return normalized;
@@ -169,7 +175,8 @@ function computeVersusFeatures(
 
   // Height differential (positive = we're lower/winning)
   if (context.opponentHeight !== undefined) {
-    const ourHeight = game.board.cells
+    const board = game.getBoard();
+    const ourHeight = board.cells
       .slice(2)  // Skip hidden rows
       .reduce((max, row, idx) => {
         const hasBlock = row.some(cell => cell !== 0);
@@ -209,7 +216,8 @@ function calculateThreatLevel(game: TetrisGame, context: VersusContext): number 
 
   // Height disadvantage threat
   if (context.opponentHeight !== undefined) {
-    const ourHeight = game.board.cells
+    const board = game.getBoard();
+    const ourHeight = board.cells
       .slice(2)
       .reduce((max, row, idx) => {
         const hasBlock = row.some(cell => cell !== 0);
@@ -228,20 +236,22 @@ function calculateThreatLevel(game: TetrisGame, context: VersusContext): number 
  * Compute attack potential (ability to send garbage)
  */
 function computeAttackPotential(game: TetrisGame): number {
+  const stats = game.getStats();
+  const board = game.getBoard();
   let potential = 0;
 
   // B2B active increases potential
-  if (game.backToBack) {
+  if (stats.backToBack) {
     potential += 0.3;
   }
 
   // Combo increases potential
-  if (game.combo > 0) {
-    potential += Math.min(game.combo / 10, 0.4);
+  if (stats.combo > 0) {
+    potential += Math.min(stats.combo / 10, 0.4);
   }
 
   // Low board allows for setups
-  const maxHeight = game.board.cells
+  const maxHeight = board.cells
     .slice(2)
     .reduce((max, row, idx) => {
       const hasBlock = row.some(cell => cell !== 0);

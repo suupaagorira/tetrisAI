@@ -124,6 +124,7 @@ async function bundleClient(projectRoot: string, watch = false): Promise<void> {
     target: ['es2018'],
     format: 'esm',
     logLevel: 'info',
+    external: ['fs/promises'],
     define: {
       'process.env.NODE_ENV': JSON.stringify(
         process.env.NODE_ENV ?? (watch ? 'development' : 'production'),
@@ -140,6 +141,7 @@ async function bundleClient(projectRoot: string, watch = false): Promise<void> {
     target: ['es2018'],
     format: 'esm',
     logLevel: 'info',
+    external: ['fs/promises'],
     define: {
       'process.env.NODE_ENV': JSON.stringify(
         process.env.NODE_ENV ?? (watch ? 'development' : 'production'),
@@ -156,6 +158,7 @@ async function bundleClient(projectRoot: string, watch = false): Promise<void> {
     target: ['es2018'],
     format: 'esm',
     logLevel: 'info',
+    external: ['fs/promises'],
     define: {
       'process.env.NODE_ENV': JSON.stringify(
         process.env.NODE_ENV ?? (watch ? 'development' : 'production'),
