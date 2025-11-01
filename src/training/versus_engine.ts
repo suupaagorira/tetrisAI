@@ -1,5 +1,5 @@
 import { PatternInferenceAgent } from '../ai/agent';
-import { LinearEvaluator, EvaluatorConfig } from '../ai/evaluator';
+import { LinearEvaluator, AdaptiveEvaluator, EvaluatorConfig } from '../ai/evaluator';
 import { VersusEnvironment, VersusStepResult } from '../versus/environment';
 import {
   cloneFeatures,
@@ -61,9 +61,9 @@ function applyTerminalReward(history: Experience[], reward: number): void {
 function buildEvaluator(
   config: EvaluatorConfig | undefined,
   learningRate: number,
-): LinearEvaluator {
+): AdaptiveEvaluator {
   const normalised = normaliseConfig(config, learningRate);
-  const evaluator = new LinearEvaluator({
+  const evaluator = new AdaptiveEvaluator({
     weights: normalised.weights,
     bias: normalised.bias ?? 0,
     learningRate,
