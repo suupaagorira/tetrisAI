@@ -147,6 +147,22 @@ async function bundleClient(projectRoot: string, watch = false): Promise<void> {
     },
   };
 
+  const strategicOptions: BuildOptions = {
+    entryPoints: [path.resolve(projectRoot, 'src', 'gui', 'strategic_client.ts')],
+    outfile: path.join(outDir, 'strategic_client.js'),
+    bundle: true,
+    sourcemap: true,
+    platform: 'browser',
+    target: ['es2018'],
+    format: 'esm',
+    logLevel: 'info',
+    define: {
+      'process.env.NODE_ENV': JSON.stringify(
+        process.env.NODE_ENV ?? (watch ? 'development' : 'production'),
+      ),
+    },
+  };
+
   const workerOptions: BuildOptions = {
     entryPoints: [path.resolve(projectRoot, 'src', 'gui', 'train_worker.ts')],
     outfile: path.join(outDir, 'train_worker.js'),
@@ -178,6 +194,10 @@ async function bundleClient(projectRoot: string, watch = false): Promise<void> {
     await versusCtx.watch();
     activeWatchContexts.push(versusCtx);
 
+    const strategicCtx = await context(strategicOptions);
+    await strategicCtx.watch();
+    activeWatchContexts.push(strategicCtx);
+
     const workerCtx = await context(workerOptions);
     await workerCtx.watch();
     activeWatchContexts.push(workerCtx);
@@ -188,6 +208,7 @@ async function bundleClient(projectRoot: string, watch = false): Promise<void> {
   } else {
     await build(clientOptions);
     await build(versusOptions);
+    await build(strategicOptions);
     await build(workerOptions);
     await build(versusWorkerOptions);
   }
