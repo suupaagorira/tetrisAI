@@ -5,7 +5,6 @@
  */
 
 import { TetrisGame } from '../core/game';
-import { Bag } from '../core/bag';
 import { createVersusAgent, StrategicAgent } from '../ai/strategic_agent';
 import { VersusContext } from '../ai/features_extended';
 import { DecisionTelemetry } from '../ai/telemetry';
@@ -134,12 +133,9 @@ class StrategicVersusClient {
   }
 
   private initializeMatch(): void {
-    const bag1 = new Bag(Date.now());
-    const bag2 = new Bag(Date.now() + 1);
-
     this.matchState = {
-      game1: new TetrisGame(bag1),
-      game2: new TetrisGame(bag2),
+      game1: new TetrisGame({ seed: Date.now() }),
+      game2: new TetrisGame({ seed: Date.now() + 1 }),
       agent1: createVersusAgent(),
       agent2: createVersusAgent(),
       garbageQueue1: 0,
@@ -242,15 +238,16 @@ class StrategicVersusClient {
 
       agent1.setVersusContext(context1);
 
-      const initialLines1 = game1.lines;
+      const initialStats1 = game1.getStats();
       agent1.act(game1);
-      const linesCleared1 = game1.lines - initialLines1;
+      const currentStats1 = game1.getStats();
+      const linesCleared1 = currentStats1.lines - initialStats1.lines;
 
       // Update thinking panel for P1
       this.updateThinkingPanel(1, agent1);
 
       if (linesCleared1 > 0) {
-        const garbage = this.calculateGarbage(linesCleared1, game1.backToBack, game1.combo);
+        const garbage = this.calculateGarbage(linesCleared1, currentStats1.backToBack, currentStats1.combo);
         this.matchState.garbageQueue2 += garbage;
 
         if (garbage > 0) {
@@ -274,15 +271,16 @@ class StrategicVersusClient {
 
       agent2.setVersusContext(context2);
 
-      const initialLines2 = game2.lines;
+      const initialStats2 = game2.getStats();
       agent2.act(game2);
-      const linesCleared2 = game2.lines - initialLines2;
+      const currentStats2 = game2.getStats();
+      const linesCleared2 = currentStats2.lines - initialStats2.lines;
 
       // Update thinking panel for P2
       this.updateThinkingPanel(2, agent2);
 
       if (linesCleared2 > 0) {
-        const garbage = this.calculateGarbage(linesCleared2, game2.backToBack, game2.combo);
+        const garbage = this.calculateGarbage(linesCleared2, currentStats2.backToBack, currentStats2.combo);
         this.matchState.garbageQueue1 += garbage;
 
         if (garbage > 0) {
@@ -302,29 +300,37 @@ class StrategicVersusClient {
 
     if (!decision) return;
 
-    const prefix = player === 1 ? 'p1' : 'p2';
     const els = this.elements;
 
     // Strategy
-    els[`${prefix}Strategy` as keyof typeof els].textContent = decision.strategyName;
-    els[`${prefix}Dwell` as keyof typeof els].textContent = `${(decision.strategyDwellTime / 1000).toFixed(1)}s`;
+    const strategyEl = player === 1 ? els.p1Strategy : els.p2Strategy;
+    const dwellEl = player === 1 ? els.p1Dwell : els.p2Dwell;
+    strategyEl.textContent = decision.strategyName;
+    dwellEl.textContent = `${(decision.strategyDwellTime / 1000).toFixed(1)}s`;
 
     // Template
-    els[`${prefix}Template` as keyof typeof els].textContent = decision.templateName;
+    const templateEl = player === 1 ? els.p1Template : els.p2Template;
+    templateEl.textContent = decision.templateName;
 
     // Trigger
+    const triggerSectionEl = player === 1 ? els.p1TriggerSection : els.p2TriggerSection;
+    const triggerEl = player === 1 ? els.p1Trigger : els.p2Trigger;
+    const triggerReasonEl = player === 1 ? els.p1TriggerReason : els.p2TriggerReason;
     if (decision.triggeredBy) {
-      els[`${prefix}TriggerSection` as keyof typeof els].style.display = 'block';
-      els[`${prefix}Trigger` as keyof typeof els].textContent = decision.triggeredBy;
-      els[`${prefix}TriggerReason` as keyof typeof els].textContent = decision.triggerReason ?? '-';
+      triggerSectionEl.style.display = 'block';
+      triggerEl.textContent = decision.triggeredBy;
+      triggerReasonEl.textContent = decision.triggerReason ?? '-';
     } else {
-      els[`${prefix}TriggerSection` as keyof typeof els].style.display = 'none';
+      triggerSectionEl.style.display = 'none';
     }
 
     // Evaluation
-    els[`${prefix}Evaluation` as keyof typeof els].textContent = decision.evaluation.toFixed(2);
-    els[`${prefix}Candidates` as keyof typeof els].textContent = decision.candidatesEvaluated.toString();
-    els[`${prefix}Beam` as keyof typeof els].textContent = decision.beamWidth.toString();
+    const evaluationEl = player === 1 ? els.p1Evaluation : els.p2Evaluation;
+    const candidatesEl = player === 1 ? els.p1Candidates : els.p2Candidates;
+    const beamEl = player === 1 ? els.p1Beam : els.p2Beam;
+    evaluationEl.textContent = decision.evaluation.toFixed(2);
+    candidatesEl.textContent = decision.candidatesEvaluated.toString();
+    beamEl.textContent = decision.beamWidth.toString();
 
     // Versus state
     if (decision.versusState) {
@@ -332,19 +338,25 @@ class StrategicVersusClient {
       const heightAdv = (decision.versusState.heightAdvantage ?? 0) * 20;
       const attackPot = ((decision.features?.attack_potential ?? 0) * 100);
 
-      els[`${prefix}KillProb` as keyof typeof els].textContent = `${killProb.toFixed(1)}%`;
-      els[`${prefix}HeightAdv` as keyof typeof els].textContent = heightAdv.toFixed(1);
-      els[`${prefix}AttackPot` as keyof typeof els].textContent = `${attackPot.toFixed(0)}%`;
+      const killProbEl = player === 1 ? els.p1KillProb : els.p2KillProb;
+      const heightAdvEl = player === 1 ? els.p1HeightAdv : els.p2HeightAdv;
+      const attackPotEl = player === 1 ? els.p1AttackPot : els.p2AttackPot;
+      killProbEl.textContent = `${killProb.toFixed(1)}%`;
+      heightAdvEl.textContent = heightAdv.toFixed(1);
+      attackPotEl.textContent = `${attackPot.toFixed(0)}%`;
     }
 
     // Latency
     const latency = decision.decisionLatency;
-    els[`${prefix}Latency` as keyof typeof els].textContent = `${latency.toFixed(1)}ms`;
+    const latencyEl = player === 1 ? els.p1Latency : els.p2Latency;
+    const latencyBarEl = player === 1 ? els.p1LatencyBar : els.p2LatencyBar;
+    latencyEl.textContent = `${latency.toFixed(1)}ms`;
     const latencyPercent = Math.min((latency / 8) * 100, 100);
-    els[`${prefix}LatencyBar` as keyof typeof els].style.width = `${latencyPercent}%`;
+    latencyBarEl.style.width = `${latencyPercent}%`;
 
     // Rationale
-    els[`${prefix}Rationale` as keyof typeof els].textContent = decision.rationale;
+    const rationaleEl = player === 1 ? els.p1Rationale : els.p2Rationale;
+    rationaleEl.textContent = decision.rationale;
   }
 
   private render(): void {
@@ -366,10 +378,13 @@ class StrategicVersusClient {
     ctx.fillStyle = '#0a0e27';
     ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
+    const board = game.getBoard();
+
     // Draw board cells
-    for (let y = 2; y < game.board.height; y++) {
-      for (let x = 0; x < game.board.width; x++) {
-        const cell = game.board.cells[y]![x];
+    for (let y = 2; y < board.height; y++) {
+      for (let x = 0; x < board.width; x++) {
+        const row = board.cells[y];
+        const cell = row ? row[x] : 0;
         const color = COLORS[cell ?? 0];
 
         ctx.fillStyle = color;
@@ -383,22 +398,22 @@ class StrategicVersusClient {
     }
 
     // Draw active piece
-    if (game.activePiece) {
-      const piece = game.activePiece;
-      const shape = piece.shape;
+    const activePiece = game.getActivePiece();
+    if (activePiece) {
+      const piece = activePiece;
       const color = COLORS[piece.type === 'I' ? 1 : piece.type === 'O' ? 2 : piece.type === 'T' ? 3 : piece.type === 'S' ? 4 : piece.type === 'Z' ? 5 : piece.type === 'L' ? 6 : 7];
 
       ctx.fillStyle = color;
       ctx.globalAlpha = 0.8;
 
-      for (const [dx, dy] of shape) {
-        const x = piece.x + dx;
-        const y = piece.y + dy - 2;
-
-        if (y >= 0) {
+      // Get absolute cells for the piece
+      const cells = this.getPieceCells(piece);
+      for (const { x, y } of cells) {
+        const displayY = y - 2;
+        if (displayY >= 0) {
           ctx.fillRect(
             x * CELL_SIZE,
-            y * CELL_SIZE,
+            displayY * CELL_SIZE,
             CELL_SIZE - 1,
             CELL_SIZE - 1
           );
@@ -409,16 +424,77 @@ class StrategicVersusClient {
     }
   }
 
-  private updateStats(player: 1 | 2, game: TetrisGame, garbageQueue: number): void {
-    const prefix = player === 1 ? 'p1' : 'p2';
-    const els = this.elements;
+  private getPieceCells(piece: { type: string; rotation: number; position: { x: number; y: number } }): { x: number; y: number }[] {
+    // Simple piece shape definitions (relative to piece position)
+    const shapes: Record<string, number[][][]> = {
+      I: [
+        [[0, 1], [1, 1], [2, 1], [3, 1]],
+        [[2, 0], [2, 1], [2, 2], [2, 3]],
+        [[0, 2], [1, 2], [2, 2], [3, 2]],
+        [[1, 0], [1, 1], [1, 2], [1, 3]]
+      ],
+      O: [
+        [[1, 0], [2, 0], [1, 1], [2, 1]],
+        [[1, 0], [2, 0], [1, 1], [2, 1]],
+        [[1, 0], [2, 0], [1, 1], [2, 1]],
+        [[1, 0], [2, 0], [1, 1], [2, 1]]
+      ],
+      T: [
+        [[1, 0], [0, 1], [1, 1], [2, 1]],
+        [[1, 0], [1, 1], [2, 1], [1, 2]],
+        [[0, 1], [1, 1], [2, 1], [1, 2]],
+        [[1, 0], [0, 1], [1, 1], [1, 2]]
+      ],
+      S: [
+        [[1, 0], [2, 0], [0, 1], [1, 1]],
+        [[1, 0], [1, 1], [2, 1], [2, 2]],
+        [[1, 1], [2, 1], [0, 2], [1, 2]],
+        [[0, 0], [0, 1], [1, 1], [1, 2]]
+      ],
+      Z: [
+        [[0, 0], [1, 0], [1, 1], [2, 1]],
+        [[2, 0], [1, 1], [2, 1], [1, 2]],
+        [[0, 1], [1, 1], [1, 2], [2, 2]],
+        [[1, 0], [0, 1], [1, 1], [0, 2]]
+      ],
+      J: [
+        [[0, 0], [0, 1], [1, 1], [2, 1]],
+        [[1, 0], [2, 0], [1, 1], [1, 2]],
+        [[0, 1], [1, 1], [2, 1], [2, 2]],
+        [[1, 0], [1, 1], [0, 2], [1, 2]]
+      ],
+      L: [
+        [[2, 0], [0, 1], [1, 1], [2, 1]],
+        [[1, 0], [1, 1], [1, 2], [2, 2]],
+        [[0, 1], [1, 1], [2, 1], [0, 2]],
+        [[0, 0], [1, 0], [1, 1], [1, 2]]
+      ]
+    };
 
-    els[`${prefix}Score` as keyof typeof els].textContent = game.score.toString();
-    els[`${prefix}Lines` as keyof typeof els].textContent = game.lines.toString();
-    els[`${prefix}Combo` as keyof typeof els].textContent = game.combo.toString();
-    els[`${prefix}B2b` as keyof typeof els].textContent = game.backToBack ? 'YES' : '-';
-    els[`${prefix}Sent` as keyof typeof els].textContent = '0'; // TODO: track sent garbage
-    els[`${prefix}Recv` as keyof typeof els].textContent = garbageQueue.toString();
+    const shape = shapes[piece.type]?.[piece.rotation] ?? [];
+    return shape.map(([dx, dy]) => ({
+      x: piece.position.x + (dx ?? 0),
+      y: piece.position.y + (dy ?? 0)
+    }));
+  }
+
+  private updateStats(player: 1 | 2, game: TetrisGame, garbageQueue: number): void {
+    const els = this.elements;
+    const stats = game.getStats();
+
+    const scoreEl = player === 1 ? els.p1Score : els.p2Score;
+    const linesEl = player === 1 ? els.p1Lines : els.p2Lines;
+    const comboEl = player === 1 ? els.p1Combo : els.p2Combo;
+    const b2bEl = player === 1 ? els.p1B2b : els.p2B2b;
+    const sentEl = player === 1 ? els.p1Sent : els.p2Sent;
+    const recvEl = player === 1 ? els.p1Recv : els.p2Recv;
+
+    scoreEl.textContent = stats.score.toString();
+    linesEl.textContent = stats.lines.toString();
+    comboEl.textContent = stats.combo.toString();
+    b2bEl.textContent = stats.backToBack ? 'YES' : '-';
+    sentEl.textContent = '0'; // TODO: track sent garbage
+    recvEl.textContent = garbageQueue.toString();
   }
 
   private showWinner(): void {
@@ -435,11 +511,13 @@ class StrategicVersusClient {
   }
 
   private calculateMaxHeight(game: TetrisGame): number {
+    const board = game.getBoard();
     let maxHeight = 0;
-    for (let x = 0; x < game.board.width; x++) {
-      for (let y = 2; y < game.board.height; y++) {
-        if (game.board.cells[y]![x] !== 0) {
-          const height = game.board.height - y - 2;
+    for (let x = 0; x < board.width; x++) {
+      for (let y = 2; y < board.height; y++) {
+        const row = board.cells[y];
+        if (row && row[x] !== 0) {
+          const height = board.height - y - 2;
           maxHeight = Math.max(maxHeight, height);
           break;
         }
@@ -449,11 +527,13 @@ class StrategicVersusClient {
   }
 
   private calculateHoles(game: TetrisGame): number {
+    const board = game.getBoard();
     let holes = 0;
-    for (let x = 0; x < game.board.width; x++) {
+    for (let x = 0; x < board.width; x++) {
       let foundBlock = false;
-      for (let y = 2; y < game.board.height; y++) {
-        if (game.board.cells[y]![x] !== 0) {
+      for (let y = 2; y < board.height; y++) {
+        const row = board.cells[y];
+        if (row && row[x] !== 0) {
           foundBlock = true;
         } else if (foundBlock) {
           holes++;

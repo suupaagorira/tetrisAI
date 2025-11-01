@@ -6,7 +6,7 @@
  */
 
 import { TetrisGame } from '../core/game';
-import { Piece } from '../core/pieces';
+import { Piece } from '../core/types';
 import {
   StrategyType,
   StrategyConfig,
@@ -69,7 +69,7 @@ export class StrategicAgent {
   private triggerState: TriggerState;
   private telemetry: TelemetryLogger | null;
   private config: StrategicAgentConfig;
-  private versusContext?: VersusContext;
+  private versusContext: VersusContext | undefined;
 
   constructor(config: StrategicAgentConfig = {}) {
     this.config = {
@@ -173,6 +173,9 @@ export class StrategicAgent {
     startTime: number,
     trigger: TriggerResult | null
   ): BeamCandidate {
+    // Get game stats for telemetry
+    const gameStats = game.getStats();
+
     // Configure beam search based on strategy
     const beamConfig: BeamSearchConfig = {
       ...this.config.beamConfig!,
@@ -211,17 +214,17 @@ export class StrategicAgent {
         gameState: {
           height: maxHeight * 20,
           holes: holes * 200,
-          score: game.score,
-          lines: game.lines,
-          combo: game.combo,
-          backToBack: game.backToBack
+          score: gameStats.score,
+          lines: gameStats.lines,
+          combo: gameStats.combo,
+          backToBack: gameStats.backToBack
         },
         versusState: this.versusContext ? {
-          opponentHeight: this.versusContext.opponentHeight,
-          incomingGarbage: this.versusContext.incomingGarbage,
-          outgoingGarbage: this.versusContext.outgoingGarbage,
-          killProbability: searchResult.bestCandidate.features?.values.kill_probability,
-          heightAdvantage: searchResult.bestCandidate.features?.values.height_advantage
+          opponentHeight: this.versusContext.opponentHeight ?? undefined,
+          incomingGarbage: this.versusContext.incomingGarbage ?? undefined,
+          outgoingGarbage: this.versusContext.outgoingGarbage ?? undefined,
+          killProbability: searchResult.bestCandidate.features?.values.kill_probability ?? undefined,
+          heightAdvantage: searchResult.bestCandidate.features?.values.height_advantage ?? undefined
         } : undefined,
         features: searchResult.bestCandidate.features?.values,
         rationale: createRationale(
@@ -231,7 +234,7 @@ export class StrategicAgent {
           {
             height: maxHeight * 20,
             holes: holes * 200,
-            combo: game.combo
+            combo: gameStats.combo
           }
         )
       };
@@ -350,10 +353,34 @@ export class StrategicAgent {
       game.hold();
     }
 
-    // Set piece to target position
-    if (game.activePiece) {
-      game.activePiece.rotation = bestMove.rotation;
-      game.activePiece.x = bestMove.column;
+    // Get current active piece
+    const activePiece = game.getActivePiece();
+    if (!activePiece) {
+      return;
+    }
+
+    // Rotate to target rotation
+    const currentRotation = activePiece.rotation;
+    const targetRotation = bestMove.rotation;
+    const rotationDiff = (targetRotation - currentRotation + 4) % 4;
+
+    for (let i = 0; i < rotationDiff; i++) {
+      game.rotate('cw');
+    }
+
+    // Move to target column
+    const currentX = game.getActivePiece()?.position.x ?? 0;
+    const targetX = bestMove.column;
+    const moveDiff = targetX - currentX;
+
+    if (moveDiff > 0) {
+      for (let i = 0; i < moveDiff; i++) {
+        game.move(1);
+      }
+    } else if (moveDiff < 0) {
+      for (let i = 0; i < Math.abs(moveDiff); i++) {
+        game.move(-1);
+      }
     }
 
     // Hard drop

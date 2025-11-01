@@ -27,9 +27,9 @@ export interface DecisionTelemetry {
   templateName: string;
 
   // Trigger info
-  triggeredBy?: TriggerType;
-  triggerReason?: string;
-  triggerConfidence?: number;
+  triggeredBy: TriggerType | undefined;
+  triggerReason: string | undefined;
+  triggerConfidence: number | undefined;
 
   // Decision info
   evaluation: number;
@@ -50,16 +50,16 @@ export interface DecisionTelemetry {
   };
 
   // Versus state (if applicable)
-  versusState?: {
-    opponentHeight?: number;
-    incomingGarbage?: number;
-    outgoingGarbage?: number;
-    killProbability?: number;
-    heightAdvantage?: number;
-  };
+  versusState: {
+    opponentHeight: number | undefined;
+    incomingGarbage: number | undefined;
+    outgoingGarbage: number | undefined;
+    killProbability: number | undefined;
+    heightAdvantage: number | undefined;
+  } | undefined;
 
   // Feature snapshot (optional, can be large)
-  features?: Record<string, number>;
+  features: Record<string, number> | undefined;
 
   // Rationale
   rationale: string;
@@ -121,7 +121,7 @@ export interface SessionSummary {
   // Game outcome
   finalScore: number;
   finalLines: number;
-  won?: boolean;
+  won: boolean | undefined;
 
   // Latency violations
   violationsAbove4ms: number;
@@ -308,7 +308,7 @@ export class TelemetryLogger {
    * Save telemetry to file (for Node.js environments)
    */
   async saveToFile(filepath: string): Promise<void> {
-    if (typeof window !== 'undefined') {
+    if (typeof globalThis !== 'undefined' && 'window' in globalThis) {
       console.warn('saveToFile is only available in Node.js environments');
       return;
     }
@@ -321,7 +321,7 @@ export class TelemetryLogger {
    * Save summary to file
    */
   async saveSummaryToFile(filepath: string, finalScore: number, finalLines: number, won?: boolean): Promise<void> {
-    if (typeof window !== 'undefined') {
+    if (typeof globalThis !== 'undefined' && 'window' in globalThis) {
       console.warn('saveSummaryToFile is only available in Node.js environments');
       return;
     }
