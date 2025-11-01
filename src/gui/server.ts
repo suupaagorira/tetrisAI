@@ -18,6 +18,7 @@ const TRAIN_GAMMA = Number(process.env.GUI_TRAIN_GAMMA ?? 0.99);
 const TRAIN_LEARNING_RATE = Number(process.env.GUI_TRAIN_LR ?? 0.001);
 const TRAIN_EXPLORATION = Number(process.env.GUI_TRAIN_EXPLORATION ?? 0.05);
 
+const VERSUS_TRAIN_PARALLELISM = Number(process.env.GUI_VERSUS_TRAIN_PARALLEL ?? 10);
 const VERSUS_TRAIN_EPISODES = Number(process.env.GUI_VERSUS_TRAIN_EPISODES ?? 5);
 const VERSUS_TRAIN_MAX_STEPS = Number(process.env.GUI_VERSUS_TRAIN_MAX_STEPS ?? 2000);
 const VERSUS_TRAIN_GAMMA = Number(process.env.GUI_VERSUS_TRAIN_GAMMA ?? 0.99);
@@ -69,6 +70,7 @@ const trainingController: TrainingController = {
 interface VersusTrainingStatus {
   running: boolean;
   cycle: number;
+  batchSize: number;
   episodesPerBatch: number;
   averageScore: { p1: number; p2: number };
   averageLines: { p1: number; p2: number };
@@ -93,6 +95,7 @@ const versusTrainingController: VersusTrainingController = {
   status: {
     running: false,
     cycle: 0,
+    batchSize: VERSUS_TRAIN_PARALLELISM,
     episodesPerBatch: VERSUS_TRAIN_EPISODES,
     averageScore: { p1: 0, p2: 0 },
     averageLines: { p1: 0, p2: 0 },
@@ -398,7 +401,7 @@ async function runTrainingLoop(projectRoot: string, workerPath: string): Promise
   trainingController.loopPromise = null;
 }
 
-async function runVersusTrainingBatch(
+function runVersusTrainingWorker(
   workerPath: string,
   baseConfig: { p1: EvaluatorConfig; p2: EvaluatorConfig },
 ): Promise<VersusTrainingRunResult> {
@@ -435,6 +438,78 @@ async function runVersusTrainingBatch(
       }
     });
   });
+}
+
+async function runVersusTrainingBatch(
+  workerPath: string,
+  baseConfig: { p1: EvaluatorConfig; p2: EvaluatorConfig },
+): Promise<VersusTrainingRunResult> {
+  const tasks = Array.from({ length: VERSUS_TRAIN_PARALLELISM }, () =>
+    runVersusTrainingWorker(workerPath, baseConfig),
+  );
+  const results = await Promise.all(tasks);
+
+  // Aggregate configs from all workers
+  const configsP1 = results.map((result) => result.evaluatorConfigP1);
+  const configsP2 = results.map((result) => result.evaluatorConfigP2);
+  const averagedConfigP1 = averageEvaluatorConfigs(configsP1);
+  const averagedConfigP2 = averageEvaluatorConfigs(configsP2);
+
+  // Aggregate statistics
+  let totalWinsP1 = 0;
+  let totalWinsP2 = 0;
+  let totalTies = 0;
+  let totalScoreP1 = 0;
+  let totalScoreP2 = 0;
+  let totalLinesP1 = 0;
+  let totalLinesP2 = 0;
+  let totalGarbageSentP1 = 0;
+  let totalGarbageSentP2 = 0;
+  let totalGarbageReceivedP1 = 0;
+  let totalGarbageReceivedP2 = 0;
+  const allSummaries = [];
+
+  for (const result of results) {
+    totalWinsP1 += result.winCounts.p1;
+    totalWinsP2 += result.winCounts.p2;
+    totalTies += result.winCounts.ties;
+    totalScoreP1 += result.averages.p1.score;
+    totalScoreP2 += result.averages.p2.score;
+    totalLinesP1 += result.averages.p1.lines;
+    totalLinesP2 += result.averages.p2.lines;
+    totalGarbageSentP1 += result.averages.p1.garbageSent;
+    totalGarbageSentP2 += result.averages.p2.garbageSent;
+    totalGarbageReceivedP1 += result.averages.p1.garbageReceived;
+    totalGarbageReceivedP2 += result.averages.p2.garbageReceived;
+    allSummaries.push(...result.summaries);
+  }
+
+  const workerCount = results.length;
+
+  return {
+    summaries: allSummaries,
+    evaluatorConfigP1: averagedConfigP1,
+    evaluatorConfigP2: averagedConfigP2,
+    winCounts: {
+      p1: totalWinsP1,
+      p2: totalWinsP2,
+      ties: totalTies,
+    },
+    averages: {
+      p1: {
+        score: totalScoreP1 / workerCount,
+        lines: totalLinesP1 / workerCount,
+        garbageSent: totalGarbageSentP1 / workerCount,
+        garbageReceived: totalGarbageReceivedP1 / workerCount,
+      },
+      p2: {
+        score: totalScoreP2 / workerCount,
+        lines: totalLinesP2 / workerCount,
+        garbageSent: totalGarbageSentP2 / workerCount,
+        garbageReceived: totalGarbageReceivedP2 / workerCount,
+      },
+    },
+  };
 }
 
 async function runVersusTrainingLoop(
