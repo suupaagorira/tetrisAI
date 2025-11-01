@@ -535,7 +535,7 @@ export class TetrisGame {
     );
     const isMini =
       frontOccupied < 2 ||
-      (this.lastKick[0] !== 0 && this.lastKick[1] !== 0);
+      (this.lastKick[0] !== 0 || this.lastKick[1] !== 0);
     return { isTSpin: true, isMini };
   }
 
