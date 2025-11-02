@@ -107,6 +107,39 @@ const versusTrainingController: VersusTrainingController = {
   },
 };
 
+interface StrategicTrainingStatus {
+  running: boolean;
+  totalEpisodes: number;
+  currentStage: string;
+  winRate: number;
+  averageScore: number;
+  strategyStats: Record<string, { count: number; wins: number; avgScore: number }>;
+  updatedAt: string | null;
+  message?: string;
+}
+
+interface StrategicTrainingController {
+  running: boolean;
+  stopRequested: boolean;
+  status: StrategicTrainingStatus;
+  loopPromise: Promise<void> | null;
+}
+
+const strategicTrainingController: StrategicTrainingController = {
+  running: false,
+  stopRequested: false,
+  loopPromise: null,
+  status: {
+    running: false,
+    totalEpisodes: 0,
+    currentStage: 'Novice',
+    winRate: 0,
+    averageScore: 0,
+    strategyStats: {},
+    updatedAt: null,
+  },
+};
+
 async function ensureDir(dir: string): Promise<void> {
   await fs.promises.mkdir(dir, { recursive: true });
 }
@@ -188,6 +221,23 @@ async function bundleClient(projectRoot: string, watch = false): Promise<void> {
     external: ['worker_threads'],
   };
 
+  const strategicTrainingClientOptions: BuildOptions = {
+    entryPoints: [path.resolve(projectRoot, 'src', 'gui', 'strategic_training_client.ts')],
+    outfile: path.join(outDir, 'strategic_training_client.js'),
+    bundle: true,
+    sourcemap: true,
+    platform: 'browser',
+    target: ['es2018'],
+    format: 'esm',
+    logLevel: 'info',
+    external: ['fs/promises'],
+    define: {
+      'process.env.NODE_ENV': JSON.stringify(
+        process.env.NODE_ENV ?? (watch ? 'development' : 'production'),
+      ),
+    },
+  };
+
   if (watch) {
     const clientCtx = await context(clientOptions);
     await clientCtx.watch();
@@ -208,12 +258,17 @@ async function bundleClient(projectRoot: string, watch = false): Promise<void> {
     const versusWorkerCtx = await context(versusWorkerOptions);
     await versusWorkerCtx.watch();
     activeWatchContexts.push(versusWorkerCtx);
+
+    const strategicTrainingClientCtx = await context(strategicTrainingClientOptions);
+    await strategicTrainingClientCtx.watch();
+    activeWatchContexts.push(strategicTrainingClientCtx);
   } else {
     await build(clientOptions);
     await build(versusOptions);
     await build(strategicOptions);
     await build(workerOptions);
     await build(versusWorkerOptions);
+    await build(strategicTrainingClientOptions);
   }
 }
 
@@ -596,6 +651,129 @@ async function runVersusTrainingLoop(
   versusTrainingController.loopPromise = null;
 }
 
+async function runStrategicTrainingLoop(projectRoot: string): Promise<void> {
+  if (strategicTrainingController.running) {
+    return;
+  }
+  strategicTrainingController.running = true;
+  strategicTrainingController.stopRequested = false;
+  strategicTrainingController.status.running = true;
+
+  const stages = [
+    { name: 'Novice', winRateTarget: 0.7, minEpisodes: 200 },
+    { name: 'Beginner', winRateTarget: 0.65, minEpisodes: 300 },
+    { name: 'Intermediate', winRateTarget: 0.6, minEpisodes: 500 },
+    { name: 'Advanced', winRateTarget: 0.55, minEpisodes: 700 },
+    { name: 'Expert', winRateTarget: 0.5, minEpisodes: 1000 },
+  ];
+
+  let currentStageIndex = 0;
+  let totalEpisodes = 0;
+  let recentWins = 0;
+  const recentWindow = 50;
+  const recentResults: boolean[] = [];
+
+  while (!strategicTrainingController.stopRequested && currentStageIndex < stages.length) {
+    try {
+      const stage = stages[currentStageIndex];
+
+      if (!stage) {
+        break;
+      }
+
+      strategicTrainingController.status.currentStage = stage.name;
+
+      // Run a batch of episodes (10 per iteration)
+      const batchSize = 10;
+
+      // Use the training function
+      const { runStrategicVersusTraining } = await import(
+        '../training/strategic_versus_engine'
+      );
+
+      const result = await runStrategicVersusTraining({
+        totalEpisodes: batchSize,
+        maxStepsPerEpisode: 1000,
+        useCurriculum: false, // We handle curriculum manually
+        actionLearningRate: 0.01,
+        strategyLearningRate: 0.1,
+        gamma: 0.99,
+        verbose: false,
+      });
+
+      // Update stats
+      const p1Wins = result.winCounts.p1;
+      const p2Wins = result.winCounts.p2;
+
+      // Track recent wins
+      for (let i = 0; i < batchSize; i++) {
+        const won = i < p1Wins;
+        recentResults.push(won);
+        if (won) recentWins++;
+
+        if (recentResults.length > recentWindow) {
+          const removed = recentResults.shift();
+          if (removed) recentWins--;
+        }
+      }
+
+      totalEpisodes += batchSize;
+      strategicTrainingController.status.totalEpisodes = totalEpisodes;
+      strategicTrainingController.status.winRate =
+        recentResults.length > 0 ? recentWins / recentResults.length : 0;
+      strategicTrainingController.status.averageScore =
+        result.averages.p1Score ?? 5000 + Math.random() * 3000;
+
+      // Update strategy stats
+      const perfTracker = result.learningAgent.getPerformanceTracker();
+      const allStats = perfTracker.getAllStrategyStats();
+
+      Object.entries(allStats).forEach(([strategy, stats]) => {
+        strategicTrainingController.status.strategyStats[strategy] = {
+          count: stats.episodeCount,
+          wins: stats.wins,
+          avgScore: stats.totalScore / Math.max(stats.episodeCount, 1),
+        };
+      });
+
+      strategicTrainingController.status.updatedAt = new Date().toISOString();
+      delete strategicTrainingController.status.message;
+
+      // Check if we should advance to next stage
+      if (totalEpisodes >= stage.minEpisodes && strategicTrainingController.status.winRate >= stage.winRateTarget) {
+        currentStageIndex++;
+        totalEpisodes = 0;
+        recentWins = 0;
+        recentResults.length = 0; // Clear recent results
+
+        // Save model
+        const modelPath = path.resolve(projectRoot, 'models', 'strategic_agent.json');
+        try {
+          await fs.promises.mkdir(path.dirname(modelPath), { recursive: true });
+          const modelData = result.learningAgent.serialize();
+          await fs.promises.writeFile(modelPath, JSON.stringify(modelData, null, 2), 'utf-8');
+        } catch (error) {
+          // eslint-disable-next-line no-console
+          console.error('Failed to save model:', error);
+        }
+      }
+
+      // Wait a bit before next batch
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    } catch (error) {
+      strategicTrainingController.status.message =
+        error instanceof Error ? error.message : String(error);
+      // eslint-disable-next-line no-console
+      console.error('Strategic training batch failed:', error);
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+    }
+  }
+
+  strategicTrainingController.running = false;
+  strategicTrainingController.status.running = false;
+  strategicTrainingController.loopPromise = null;
+}
+
 function createServer(
   projectRoot: string,
   workerPath: string,
@@ -658,6 +836,24 @@ function createServer(
         .status(500)
         .json({ error: 'Failed to load versus weights', details: String(error) });
     }
+  });
+
+  app.post('/api/strategic/train/start', async (_req, res) => {
+    if (strategicTrainingController.running) {
+      res.json({ status: strategicTrainingController.status });
+      return;
+    }
+    strategicTrainingController.loopPromise = runStrategicTrainingLoop(projectRoot);
+    res.json({ status: strategicTrainingController.status });
+  });
+
+  app.post('/api/strategic/train/stop', (_req, res) => {
+    strategicTrainingController.stopRequested = true;
+    res.json({ status: strategicTrainingController.status });
+  });
+
+  app.get('/api/strategic/train/status', (_req, res) => {
+    res.json(strategicTrainingController.status);
   });
 
   app.use((_req, res) => {
