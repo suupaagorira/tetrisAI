@@ -336,4 +336,22 @@ export class EpisodeStrategyTracker {
   getHistory(): readonly StrategyUsageRecord[] {
     return this.history;
   }
+
+  /**
+   * Gets the cumulative reward for the current strategy
+   */
+  getCurrentStrategyReward(): number {
+    return this.currentStrategyReward;
+  }
+
+  /**
+   * Gets the total reward accumulated in this episode
+   */
+  getTotalReward(): number {
+    let total = this.currentStrategyReward;
+    for (const record of this.history) {
+      total += record.reward;
+    }
+    return total;
+  }
 }

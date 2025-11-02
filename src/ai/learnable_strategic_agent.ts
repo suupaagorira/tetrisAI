@@ -77,6 +77,9 @@ export interface StrategicDecision {
 
   /** Was strategy selected via exploration? */
   strategyExploration: boolean;
+
+  /** Reward received for this decision (to be filled in later) */
+  reward?: number;
 }
 
 /**
@@ -376,6 +379,16 @@ export class LearnableStrategicAgent {
    */
   clearDecisionHistory(): void {
     this.decisionHistory = [];
+  }
+
+  /**
+   * Get cumulative reward from episode tracker
+   */
+  getEpisodeReward(): number {
+    if (!this.episodeTracker) {
+      return 0;
+    }
+    return this.episodeTracker.getTotalReward();
   }
 
   /**
