@@ -184,7 +184,7 @@ const agent = new LearnableStrategicAgent(config);
 - **使用時期**: ボードが低く（≤6行）かつクリーン（0穴）な時
 - **主要特徴**: `pc_feasibility`, `max_height`
 
-### 4. 4-Wideドミナンス (`FOUR_WIDE_DOMINANCE`)
+### 4. 4-Wideドミナンス (`FOURWIDE_DOMINANCE`)
 - **目標**: 4-wideコンボ攻撃の構築と維持
 - **使用時期**: ボードが低〜中程度の高さで平坦な表面の時
 - **主要特徴**: `combo_potential`, `four_wide_potential`

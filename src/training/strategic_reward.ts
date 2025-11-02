@@ -156,7 +156,7 @@ export function computeStrategyGoalReward(
 
       break;
 
-    case StrategyType.FOUR_WIDE_DOMINANCE:
+    case StrategyType.FOURWIDE_DOMINANCE:
       // Reward: Combo maintenance and extension
       if (after.combo > before.combo) {
         reward += (after.combo - before.combo) * 30;

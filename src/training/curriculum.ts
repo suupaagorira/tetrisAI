@@ -83,7 +83,7 @@ export const DEFAULT_CURRICULUM: CurriculumStage[] = [
     opponentStrength: 0.8,
     opponentStrategies: [
       StrategyType.B2B_PRESSURE,
-      StrategyType.FOUR_WIDE_DOMINANCE,
+      StrategyType.FOURWIDE_DOMINANCE,
       StrategyType.CHEESE_FARMING,
       StrategyType.PC_UTILIZATION,
     ],

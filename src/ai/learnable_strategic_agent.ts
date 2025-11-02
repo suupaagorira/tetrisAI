@@ -168,7 +168,7 @@ export class LearnableStrategicAgent {
    * Clear versus context (e.g., when switching to solo mode)
    */
   clearVersusContext(): void {
-    this.versusContext = undefined;
+    delete this.versusContext;
   }
 
   /**
@@ -206,13 +206,22 @@ export class LearnableStrategicAgent {
 
     // Update performance tracker with episode results
     for (const record of history) {
-      this.performanceTracker.recordStrategyEnd(record.strategy, {
+      const result: {
+        score: number;
+        garbageSent: number;
+        moves: number;
+        reward: number;
+        won?: boolean;
+      } = {
         score: record.scoreGain,
         garbageSent: record.garbageSent,
         moves: record.movesCount,
         reward: record.reward,
-        won,
-      });
+      };
+      if (won !== undefined) {
+        result.won = won;
+      }
+      this.performanceTracker.recordStrategyEnd(record.strategy, result);
     }
 
     // End strategy selector episode
@@ -234,7 +243,7 @@ export class LearnableStrategicAgent {
       strategyDuration: Date.now() - this.strategyStartTime,
       strategySwitchCount: this.strategySwitchCount,
       lastStrategySuccess: this.lastStrategySuccess,
-      versusContext: this.versusContext,
+      ...(this.versusContext ? { versusContext: this.versusContext } : {}),
     };
 
     const state = computeStrategicFeatures(

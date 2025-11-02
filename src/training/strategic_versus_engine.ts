@@ -212,10 +212,10 @@ export function runStrategicVersusTraining(
   const totalScoreP2 = episodes.reduce((sum, e) => sum + e.p2Score, 0);
   const totalMoves = episodes.reduce((sum, e) => sum + e.p1Moves, 0);
 
-  return {
+  const result: StrategicTrainingResult = {
     episodes,
     learningAgent,
-    curriculumProgress,
+    ...(curriculumProgress ? { curriculumProgress } : {}),
     winCounts: { p1: p1Wins, p2: p2Wins, ties },
     finalStats: {
       p1WinRate: p1Wins / opts.totalEpisodes,
@@ -225,6 +225,8 @@ export function runStrategicVersusTraining(
       avgEpisodeLength: totalMoves / opts.totalEpisodes,
     },
   };
+
+  return result;
 }
 
 /**
@@ -296,10 +298,11 @@ function runStrategicMatch(
     // Alternate turns
     for (const playerIndex of [0, 1] as const) {
       const agent = playerIndex === 0 ? agentP1 : agentP2;
+      const opponentIndex = (playerIndex === 0 ? 1 : 0) as 0 | 1;
       const game = environment.getGame(playerIndex);
-      const opponentGame = environment.getGame(1 - playerIndex);
+      const opponentGame = environment.getGame(opponentIndex);
       const snapshot = environment.getPlayerSnapshot(playerIndex);
-      const opponentSnapshot = environment.getPlayerSnapshot(1 - playerIndex);
+      const opponentSnapshot = environment.getPlayerSnapshot(opponentIndex);
 
       // Get state before action
       const statsBefore = game.getStats();
@@ -465,7 +468,7 @@ function runStrategicMatch(
   );
 
   // Create summary
-  return {
+  const summary: StrategicEpisodeSummary = {
     episodeNumber: episodeIndex,
     winner,
     p1Score: gameP1.getStats().score,
@@ -478,8 +481,10 @@ function runStrategicMatch(
     p2StrategiesUsed: Array.from(new Set(historyP2.strategiesUsed)),
     p1StrategySwitches: historyP1.strategiesUsed.length - 1,
     p2StrategySwitches: historyP2.strategiesUsed.length - 1,
-    curriculumStage: stage?.name,
+    ...(stage?.name ? { curriculumStage: stage.name } : {}),
   };
+
+  return summary;
 }
 
 /**

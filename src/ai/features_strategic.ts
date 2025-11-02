@@ -7,6 +7,7 @@
  */
 
 import { TetrisGame } from '../core/game.js';
+import { PieceType } from '../core/types.js';
 import { FeatureVector, computeFeatures } from './features.js';
 import { computeExtendedFeatures, VersusContext } from './features_extended.js';
 import { StrategyType } from './strategy.js';
@@ -104,7 +105,7 @@ function computeStrategicMetaFeatures(
     strategy_is_b2b_pressure: context.currentStrategy === StrategyType.B2B_PRESSURE ? 1 : 0,
     strategy_is_defense: context.currentStrategy === StrategyType.DEFENSE_CANCEL ? 1 : 0,
     strategy_is_pc: context.currentStrategy === StrategyType.PC_UTILIZATION ? 1 : 0,
-    strategy_is_4wide: context.currentStrategy === StrategyType.FOUR_WIDE_DOMINANCE ? 1 : 0,
+    strategy_is_4wide: context.currentStrategy === StrategyType.FOURWIDE_DOMINANCE ? 1 : 0,
     strategy_is_cheese: context.currentStrategy === StrategyType.CHEESE_FARMING ? 1 : 0,
     strategy_is_tempo: context.currentStrategy === StrategyType.TEMPO_DELAY ? 1 : 0,
   };
@@ -256,13 +257,13 @@ function analyzeFourWidePotential(rows: number[][], metrics: { heights: number[]
 /**
  * Helper: Check if I piece is available for Tetris
  */
-function hasIPiecePlacement(queue: readonly import('../core/types.js').Piece[], holdPiece: import('../core/types.js').Piece | null): boolean {
+function hasIPiecePlacement(queue: readonly PieceType[], holdPiece: PieceType | null): boolean {
   // Check hold piece
-  if (holdPiece?.type === 'I') return true;
+  if (holdPiece === 'I') return true;
 
   // Check next 3 pieces in queue
   for (let i = 0; i < Math.min(3, queue.length); i++) {
-    if (queue[i]?.type === 'I') return true;
+    if (queue[i] === 'I') return true;
   }
 
   return false;
