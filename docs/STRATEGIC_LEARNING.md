@@ -1,90 +1,90 @@
-# Strategic Learning Mode
+# 戦略的学習モード
 
-This document describes the strategic learning implementation for TetrisAI, addressing [Issue #22](https://github.com/suupaagorira/tetrisAI/issues/22).
+このドキュメントでは、TetrisAIの戦略的学習実装について説明します。[Issue #22](https://github.com/suupaagorira/tetrisAI/issues/22)に対応しています。
 
-## Overview
+## 概要
 
-The strategic learning mode extends the existing `PatternInferenceAgent` with strategic thinking capabilities, allowing the AI to:
-- Learn **when** to use different strategies (meta-level learning)
-- Learn **how** to execute each strategy effectively (action-level learning)
-- Adapt dynamically between offensive and defensive play based on game state
-- Progress through a curriculum from novice to expert opponents
+戦略的学習モードは、既存の`PatternInferenceAgent`に戦略的思考機能を追加し、AIが以下のことを可能にします：
+- 異なる戦略を**いつ**使うべきかを学習（メタレベル学習）
+- 各戦略を**どのように**効果的に実行するかを学習（行動レベル学習）
+- ゲーム状態に基づいて、攻撃と防御を動的に切り替え
+- 初心者から上級者の対戦相手まで、段階的に進歩
 
-## Architecture
+## アーキテクチャ
 
-### Hierarchical Learning System
+### 階層的学習システム
 
 ```
 ┌─────────────────────────────────────────────┐
-│     StrategySelector (Q-Learning)           │
-│     Selects which strategy to use           │
+│     StrategySelector (Q学習)                │
+│     どの戦略を使うかを選択                    │
 └────────────────┬────────────────────────────┘
                  │
          ┌───────┴────────┐
          │                │
     ┌────▼─────┐    ┌────▼─────┐    ...
-    │Strategy 1│    │Strategy 2│    (6 strategies)
-    │Evaluator │    │Evaluator │
+    │戦略1     │    │戦略2     │    (6戦略)
+    │評価器    │    │評価器    │
     └────┬─────┘    └────┬─────┘
          │                │
     ┌────▼─────────────────▼─────┐
     │  PatternInferenceAgent      │
-    │  Selects specific moves     │
+    │  具体的な手を選択             │
     └─────────────────────────────┘
 ```
 
-### Key Components
+### 主要コンポーネント
 
 #### 1. **LearnableStrategicAgent** (`src/ai/learnable_strategic_agent.ts`)
 
-The main agent that combines strategy selection and action learning:
-- **Strategy Selection**: Uses Q-learning to choose among 6 strategies
-- **Action Selection**: Uses linear evaluators (one per strategy) to choose moves
-- **Performance Tracking**: Monitors success of each strategy
-- **Versus Mode**: Incorporates opponent state for competitive play
+戦略選択と行動学習を組み合わせたメインエージェント：
+- **戦略選択**: Q学習を使用して6つの戦略から選択
+- **行動選択**: 線形評価器（戦略ごとに1つ）を使用して手を選択
+- **パフォーマンス追跡**: 各戦略の成功を監視
+- **対戦モード**: 競技プレイのために相手の状態を組み込む
 
 #### 2. **StrategySelector** (`src/ai/strategy_selector.ts`)
 
-Q-learning based meta-level decision maker:
-- Maintains Q(state, strategy) for all strategy choices
-- Uses ε-greedy exploration (ε decays from 0.3 → 0.05)
-- Updates via temporal difference learning
-- Serializable for save/load
+Q学習ベースのメタレベル意思決定者：
+- すべての戦略選択に対してQ(状態, 戦略)を維持
+- ε-greedy探索を使用（εは0.3 → 0.05に減衰）
+- 時間的差分学習による更新
+- 保存/読み込み可能
 
-#### 3. **Strategic Features** (`src/ai/features_strategic.ts`)
+#### 3. **戦略的特徴** (`src/ai/features_strategic.ts`)
 
-Extended feature space for strategic decisions:
-- **Strategy History**: Duration, switches, success indicators
-- **Opportunity Features**: T-Spin, combo, PC, 4-wide potential
-- **Versus Features**: Relative advantage, opponent vulnerability, tempo control
+戦略的意思決定のための拡張特徴空間：
+- **戦略履歴**: 期間、切り替え、成功指標
+- **機会特徴**: T-Spin、コンボ、PC、4-wide可能性
+- **対戦特徴**: 相対的優位性、相手の脆弱性、テンポコントロール
 
-#### 4. **Strategic Rewards** (`src/training/strategic_reward.ts`)
+#### 4. **戦略的報酬** (`src/training/strategic_reward.ts`)
 
-Multi-component reward system:
+多成分報酬システム：
 
-| Component | Purpose | Weight |
-|-----------|---------|--------|
-| Action Reward | Immediate score/progress | Base |
-| Strategy Goal Reward | Strategy-specific objectives | +Variable |
-| Versus Reward | Competitive dynamics | +50-200 |
-| Diversity Bonus | Encourage exploration | ±5-10 |
-| Terminal Reward | Win/loss outcome | ±1000 |
+| 成分 | 目的 | 重み |
+|------|------|------|
+| 行動報酬 | 即時スコア/進行 | ベース |
+| 戦略目標報酬 | 戦略固有の目標 | +可変 |
+| 対戦報酬 | 競技ダイナミクス | +50-200 |
+| 多様性ボーナス | 探索を促進 | ±5-10 |
+| 終了報酬 | 勝敗結果 | ±1000 |
 
-#### 5. **Curriculum Learning** (`src/training/curriculum.ts`)
+#### 5. **カリキュラム学習** (`src/training/curriculum.ts`)
 
-Progressive difficulty stages:
+段階的難易度ステージ：
 
-| Stage | Opponent Strategies | Required Win Rate | Min Episodes |
-|-------|---------------------|-------------------|--------------|
-| Novice | Tempo Delay | 70% | 100 |
-| Beginner | Tempo + Defense | 65% | 150 |
-| Intermediate | B2B + Defense + Cheese | 60% | 200 |
-| Advanced | B2B + 4-Wide + Cheese + PC | 55% | 300 |
-| Expert | All 6 Strategies | 50% | 500 |
+| ステージ | 対戦相手の戦略 | 必要勝率 | 最小エピソード |
+|---------|---------------|---------|--------------|
+| 初心者 | テンポ遅延 | 70% | 100 |
+| 中級者 | テンポ + 防御 | 65% | 150 |
+| 中上級 | B2B + 防御 + チーズ | 60% | 200 |
+| 上級者 | B2B + 4-Wide + チーズ + PC | 55% | 300 |
+| エキスパート | 全6戦略 | 50% | 500 |
 
-## Usage
+## 使用方法
 
-### Training
+### トレーニング
 
 ```typescript
 import { runStrategicVersusTraining } from './training/strategic_versus_engine';
@@ -98,27 +98,27 @@ const result = runStrategicVersusTraining({
   verbose: true,
 });
 
-console.log(`Final win rate: ${result.finalStats.p1WinRate * 100}%`);
+console.log(`最終勝率: ${result.finalStats.p1WinRate * 100}%`);
 ```
 
-### Save/Load Agent
+### エージェントの保存/読み込み
 
 ```typescript
 import { LearnableStrategicAgent } from './ai/learnable_strategic_agent';
 import fs from 'fs';
 
-// Save
+// 保存
 const agent = new LearnableStrategicAgent();
 const data = agent.toJSON();
 fs.writeFileSync('agent.json', JSON.stringify(data, null, 2));
 
-// Load
+// 読み込み
 const loadedAgent = new LearnableStrategicAgent();
 const savedData = JSON.parse(fs.readFileSync('agent.json', 'utf-8'));
 loadedAgent.fromJSON(savedData);
 ```
 
-### Performance Analysis
+### パフォーマンス分析
 
 ```typescript
 const tracker = agent.getPerformanceTracker();
@@ -126,206 +126,206 @@ const performance = tracker.getAllPerformance();
 
 for (const [strategy, stats] of performance) {
   console.log(`${strategy}:
-    Win Rate: ${(stats.winRate * 100).toFixed(1)}%
-    Avg Score: ${stats.averageScore.toFixed(0)}
-    Avg Garbage: ${stats.averageGarbageSent.toFixed(1)}
+    勝率: ${(stats.winRate * 100).toFixed(1)}%
+    平均スコア: ${stats.averageScore.toFixed(0)}
+    平均ガベージ: ${stats.averageGarbageSent.toFixed(1)}
   `);
 }
 ```
 
-## Configuration
+## 設定
 
-### Environment Variables
+### 環境変数
 
 ```bash
-# GPU Configuration (for future neural network support)
+# GPU設定（将来のニューラルネットワークサポート用）
 export TETRIS_AI_GPU_BACKEND=cuda        # cuda, rocm, metal, cpu
-export TETRIS_AI_GPU_DEVICE_ID=0         # GPU device ID
-export TETRIS_AI_GPU_BATCH_SIZE=64       # Training batch size
-export TETRIS_AI_GPU_MEMORY_FRACTION=0.8 # Max GPU memory to use
+export TETRIS_AI_GPU_DEVICE_ID=0         # GPUデバイスID
+export TETRIS_AI_GPU_BATCH_SIZE=64       # トレーニングバッチサイズ
+export TETRIS_AI_GPU_MEMORY_FRACTION=0.8 # 使用する最大GPUメモリ
 
-# Training Configuration
-export TETRIS_AI_EPISODES=1000           # Total training episodes
-export TETRIS_AI_ACTION_LR=0.001         # Action-level learning rate
-export TETRIS_AI_STRATEGY_LR=0.01        # Strategy-level learning rate
-export TETRIS_AI_GAMMA=0.95              # Discount factor
+# トレーニング設定
+export TETRIS_AI_EPISODES=1000           # 総トレーニングエピソード
+export TETRIS_AI_ACTION_LR=0.001         # 行動レベル学習率
+export TETRIS_AI_STRATEGY_LR=0.01        # 戦略レベル学習率
+export TETRIS_AI_GAMMA=0.95              # 割引率
 ```
 
-### Code Configuration
+### コード設定
 
 ```typescript
 const config = {
-  actionExplorationRate: 0.1,      // ε for move selection
-  strategyExplorationRate: 0.3,    // ε for strategy selection
-  actionLearningRate: 0.001,       // Learning rate for moves
-  strategyLearningRate: 0.01,      // Learning rate for strategies
-  gamma: 0.95,                     // Discount factor
-  enableHold: true,                // Allow hold piece
-  versusMode: true,                // Enable versus features
+  actionExplorationRate: 0.1,      // 手選択のためのε
+  strategyExplorationRate: 0.3,    // 戦略選択のためのε
+  actionLearningRate: 0.001,       // 手の学習率
+  strategyLearningRate: 0.01,      // 戦略の学習率
+  gamma: 0.95,                     // 将来の報酬を割引
+  enableHold: true,                // ホールドピースを許可
+  versusMode: true,                // 対戦機能を有効化
 };
 
 const agent = new LearnableStrategicAgent(config);
 ```
 
-## Strategy Types
+## 戦略タイプ
 
-### 1. B2B Pressure (`B2B_PRESSURE`)
-- **Goal**: Maintain back-to-back chains (Tetris → T-Spin → Tetris)
-- **When to use**: When you have consistent piece flow and want maximum garbage output
-- **Key features**: `b2bSustainability`, `tspin_availability`
+### 1. B2Bプレッシャー (`B2B_PRESSURE`)
+- **目標**: バックトゥバックチェーンの維持（Tetris → T-Spin → Tetris）
+- **使用時期**: 安定したピース供給があり、最大のガベージ出力が必要な時
+- **主要特徴**: `b2bSustainability`, `tspin_availability`
 
-### 2. Defense & Cancel (`DEFENSE_CANCEL`)
-- **Goal**: Cancel incoming garbage and reduce board height
-- **When to use**: When receiving heavy attack or board is dangerously high
-- **Key features**: `incoming_garbage`, `garbage_threat`, `downstack_urgency`
+### 2. 防御＆キャンセル (`DEFENSE_CANCEL`)
+- **目標**: 受信ガベージをキャンセルし、ボードの高さを下げる
+- **使用時期**: 重い攻撃を受けているか、ボードが危険なほど高い時
+- **主要特徴**: `incoming_garbage`, `garbage_threat`, `downstack_urgency`
 
-### 3. Perfect Clear (`PC_UTILIZATION`)
-- **Goal**: Clear the entire board for massive points
-- **When to use**: When board is low (≤6 rows) and clean (0 holes)
-- **Key features**: `pc_feasibility`, `max_height`
+### 3. パーフェクトクリア (`PC_UTILIZATION`)
+- **目標**: ボード全体をクリアして大量のポイントを獲得
+- **使用時期**: ボードが低く（≤6行）かつクリーン（0穴）な時
+- **主要特徴**: `pc_feasibility`, `max_height`
 
-### 4. 4-Wide Dominance (`FOUR_WIDE_DOMINANCE`)
-- **Goal**: Build and maintain 4-wide combo attacks
-- **When to use**: When board is low-medium height with flat surface
-- **Key features**: `combo_potential`, `four_wide_potential`
+### 4. 4-Wideドミナンス (`FOUR_WIDE_DOMINANCE`)
+- **目標**: 4-wideコンボ攻撃の構築と維持
+- **使用時期**: ボードが低〜中程度の高さで平坦な表面の時
+- **主要特徴**: `combo_potential`, `four_wide_potential`
 
-### 5. Cheese Farming (`CHEESE_FARMING`)
-- **Goal**: Maximize garbage sent to opponent
-- **When to use**: When opponent is vulnerable (high board)
-- **Key features**: `opponent_vulnerability`, `strategic_pressure`
+### 5. チーズファーミング (`CHEESE_FARMING`)
+- **目標**: 相手に送るガベージを最大化
+- **使用時期**: 相手が脆弱（ボードが高い）な時
+- **主要特徴**: `opponent_vulnerability`, `strategic_pressure`
 
-### 6. Tempo Delay (`TEMPO_DELAY`)
-- **Goal**: Safe, conservative play to control tempo
-- **When to use**: When you have advantage and want to maintain it safely
-- **Key features**: `tempo_control`, `relative_advantage`
+### 6. テンポ遅延 (`TEMPO_DELAY`)
+- **目標**: 安全で保守的なプレイでテンポをコントロール
+- **使用時期**: 優位性があり、それを安全に維持したい時
+- **主要特徴**: `tempo_control`, `relative_advantage`
 
-## Learning Algorithm
+## 学習アルゴリズム
 
-### Action-Level Learning (Monte Carlo)
+### 行動レベル学習（モンテカルロ法）
 
-For each strategy's evaluator:
+各戦略の評価器について：
 ```
-For each episode:
-  Collect trajectory: (s₀, a₀, r₀), (s₁, a₁, r₁), ..., (sₜ, aₜ, rₜ)
+各エピソードについて:
+  軌跡を収集: (s₀, a₀, r₀), (s₁, a₁, r₁), ..., (sₜ, aₜ, rₜ)
 
-  For each time step t (backwards):
-    Gₜ = rₜ + γ·rₜ₊₁ + γ²·rₜ₊₂ + ... (discounted return)
+  各時刻t（逆順）について:
+    Gₜ = rₜ + γ·rₜ₊₁ + γ²·rₜ₊₂ + ... (割引リターン)
 
-    Update weights:
+    重みを更新:
       error = Gₜ - V(sₜ; θ)
       θ ← θ + α·error·∇V(sₜ; θ)
 ```
 
-### Strategy-Level Learning (Q-Learning)
+### 戦略レベル学習（Q学習）
 
-For the strategy selector:
+戦略セレクターについて：
 ```
-For each decision:
-  Select strategy a using ε-greedy policy on Q(s, ·)
+各決定について:
+  Q(s, ·)に対するε-greedy方策を使用して戦略aを選択
 
-  After action completes:
-    Observe reward r and next state s'
+  行動完了後:
+    報酬rと次状態s'を観察
 
-    Update Q-value:
+    Q値を更新:
       target = r + γ·max_a' Q(s', a')
       error = target - Q(s, a)
       Q(s, a) ← Q(s, a) + α·error·∇Q(s, a)
 ```
 
-## Performance Benchmarks
+## パフォーマンスベンチマーク
 
-### Expected Learning Curve
+### 期待される学習曲線
 
-| Episodes | Win Rate | Avg Score | Strategy Diversity |
-|----------|----------|-----------|-------------------|
-| 0-100 | 30-40% | 5,000 | 2-3 strategies |
-| 100-300 | 50-60% | 15,000 | 3-4 strategies |
-| 300-600 | 60-70% | 25,000 | 4-5 strategies |
-| 600-1000 | 70-80% | 35,000 | 5-6 strategies |
+| エピソード | 勝率 | 平均スコア | 戦略多様性 |
+|-----------|------|-----------|-----------|
+| 0-100 | 30-40% | 5,000 | 2-3戦略 |
+| 100-300 | 50-60% | 15,000 | 3-4戦略 |
+| 300-600 | 60-70% | 25,000 | 4-5戦略 |
+| 600-1000 | 70-80% | 35,000 | 5-6戦略 |
 
-### Computational Requirements
+### 計算要件
 
-- **CPU-based training**: ~1 episode/second (single-threaded)
-- **Parallel training**: ~10-50 episodes/second (depending on cores)
-- **Memory usage**: ~500 MB (grows with episode history)
-- **Storage**: ~1 MB per saved agent model
+- **CPUベーストレーニング**: 約1エピソード/秒（シングルスレッド）
+- **並列トレーニング**: 約10-50エピソード/秒（コア数に依存）
+- **メモリ使用量**: 約500 MB（エピソード履歴とともに増加）
+- **ストレージ**: 保存されたエージェントモデルあたり約1 MB
 
-## Future Enhancements
+## 将来の機能拡張
 
-### Short-term (Planned)
-- [ ] GUI dashboard for training visualization
-- [ ] Real-time strategy switching visualization
-- [ ] Telemetry export to CSV/JSON
-- [ ] A/B testing framework for comparing agents
+### 短期（計画済み）
+- [ ] トレーニング可視化のためのGUIダッシュボード
+- [ ] リアルタイム戦略切り替え可視化
+- [ ] CSV/JSONへのテレメトリーエクスポート
+- [ ] エージェント比較のためのA/Bテストフレームワーク
 
-### Medium-term (Research)
-- [ ] Neural network evaluators (replace linear)
-- [ ] GPU acceleration for batch training
-- [ ] Multi-agent self-play tournaments
-- [ ] Transfer learning between game modes
+### 中期（研究）
+- [ ] ニューラルネットワーク評価器（線形を置換）
+- [ ] バッチトレーニングのためのGPU加速
+- [ ] マルチエージェント自己対戦トーナメント
+- [ ] ゲームモード間の転移学習
 
-### Long-term (Experimental)
-- [ ] Transformer-based sequence modeling
-- [ ] Reinforcement learning from human feedback
-- [ ] Explainable AI for strategy decisions
-- [ ] Online learning during live play
+### 長期（実験的）
+- [ ] Transformerベースのシーケンスモデリング
+- [ ] 人間のフィードバックからの強化学習
+- [ ] 戦略決定のための説明可能AI
+- [ ] ライブプレイ中のオンライン学習
 
-## Troubleshooting
+## トラブルシューティング
 
-### Agent doesn't learn / win rate stuck
+### エージェントが学習しない / 勝率が停滞
 
-**Possible causes**:
-- Learning rates too high (causing instability) or too low (slow learning)
-- Exploration rates too high (too random) or too low (no exploration)
-- Curriculum too difficult (skip to easier stage)
+**考えられる原因**:
+- 学習率が高すぎる（不安定）または低すぎる（学習が遅い）
+- 探索率が高すぎる（ランダムすぎる）または低すぎる（探索不足）
+- カリキュラムが難しすぎる（簡単なステージにスキップ）
 
-**Solutions**:
+**解決策**:
 ```typescript
-// Reduce learning rates
+// 学習率を下げる
 agent.getConfig().actionLearningRate = 0.0001;
 agent.getConfig().strategyLearningRate = 0.001;
 
-// Adjust exploration
-agent.setExplorationRates(0.05, 0.1); // (action, strategy)
+// 探索を調整
+agent.setExplorationRates(0.05, 0.1); // (行動, 戦略)
 
-// Skip curriculum stage
-curriculumProgress.skipToStage(0); // Back to Novice
+// カリキュラムステージをスキップ
+curriculumProgress.skipToStage(0); // 初心者に戻る
 ```
 
-### Agent over-fits to one strategy
+### エージェントが1つの戦略に過剰適応
 
-**Cause**: Insufficient diversity bonus or exploration
+**原因**: 多様性ボーナスまたは探索が不十分
 
-**Solution**:
+**解決策**:
 ```typescript
-// Increase diversity weight in reward computation
-// (modify strategic_reward.ts:computeDiversityBonus)
+// 多様性の重みを増やす
+// （strategic_reward.ts:computeDiversityBonusを修正）
 
-// Increase strategy exploration
+// 戦略探索を増やす
 agent.getConfig().strategyExplorationRate = 0.3;
 ```
 
-### Training too slow
+### トレーニングが遅すぎる
 
-**Solutions**:
-- Reduce `maxStepsPerEpisode` (default 2000 → 1000)
-- Increase parallel workers
-- Use curriculum (skips easy episodes faster)
-- Profile code for bottlenecks
+**解決策**:
+- `maxStepsPerEpisode`を減らす（デフォルト2000 → 1000）
+- 並列ワーカーを増やす
+- カリキュラムを使用（簡単なエピソードをより速くスキップ）
+- ボトルネックのためにコードをプロファイル
 
-## References
+## 参考文献
 
-- [Issue #22: Strategic Thinking Integration](https://github.com/suupaagorira/tetrisAI/issues/22)
-- [Q-Learning Paper](https://link.springer.com/article/10.1007/BF00992698) (Watkins & Dayan, 1992)
-- [Curriculum Learning Paper](https://ronan.collobert.com/pub/matos/2009_curriculum_icml.pdf) (Bengio et al., 2009)
-- [Monte Carlo RL](http://incompleteideas.net/book/the-book.html) (Sutton & Barto, 2018)
+- [Issue #22: 戦略的思考の統合](https://github.com/suupaagorira/tetrisAI/issues/22)
+- [Q学習論文](https://link.springer.com/article/10.1007/BF00992698)（Watkins & Dayan, 1992）
+- [カリキュラム学習論文](https://ronan.collobert.com/pub/matos/2009_curriculum_icml.pdf)（Bengio et al., 2009）
+- [モンテカルロRL](http://incompleteideas.net/book/the-book.html)（Sutton & Barto, 2018）
 
-## Contributors
+## 貢献者
 
-- Implementation: Claude (Anthropic AI)
-- Design: Based on issue requirements and existing codebase
-- Testing: Community contributors welcome!
+- 実装: Claude (Anthropic AI)
+- 設計: Issue要件と既存コードベースに基づく
+- テスト: コミュニティ貢献者歓迎！
 
-## License
+## ライセンス
 
-Same as main project (see root LICENSE file)
+メインプロジェクトと同じ（ルートLICENSEファイル参照）

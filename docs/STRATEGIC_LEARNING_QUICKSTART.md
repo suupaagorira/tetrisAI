@@ -1,270 +1,270 @@
-# Strategic Learning Quick Start Guide
+# 戦略的学習クイックスタートガイド
 
-Get started with strategic learning in under 5 minutes!
+5分以内に戦略的学習を始めましょう！
 
-## Installation
+## インストール
 
-No additional dependencies required - everything is included in the main project.
+追加の依存関係は不要です - すべてメインプロジェクトに含まれています。
 
 ```bash
-# Ensure you have the latest code
+# 最新のコードを取得
 git pull origin main
 
-# Install dependencies (if not already done)
+# 依存関係をインストール（まだの場合）
 npm install
 
-# Build the project
+# プロジェクトをビルド
 npm run build
 ```
 
-## Basic Training Example
+## 基本的なトレーニング例
 
-### 1. Simple Training Session
+### 1. シンプルなトレーニングセッション
 
-Create a file `examples/train_strategic.ts`:
+`examples/train_strategic.ts`ファイルを作成：
 
 ```typescript
 import { runStrategicVersusTraining } from '../src/training/strategic_versus_engine';
 
-console.log('Starting strategic learning training...\n');
+console.log('戦略的学習トレーニングを開始します...\n');
 
 const result = runStrategicVersusTraining({
-  totalEpisodes: 100,           // Start small for testing
-  maxStepsPerEpisode: 1000,     // Shorter episodes for speed
-  useCurriculum: true,          // Enable progressive difficulty
-  verbose: true,                // Show progress
+  totalEpisodes: 100,           // テスト用に少なめに設定
+  maxStepsPerEpisode: 1000,     // より速いエピソード
+  useCurriculum: true,          // 段階的難易度を有効化
+  verbose: true,                // 進捗を表示
 });
 
-console.log('\n=== Training Complete ===');
-console.log(`Total Episodes: ${result.episodes.length}`);
-console.log(`Win Rate: ${(result.finalStats.p1WinRate * 100).toFixed(1)}%`);
-console.log(`Average Score: ${result.finalStats.avgP1Score.toFixed(0)}`);
-console.log(`\nWins: ${result.winCounts.p1}`);
-console.log(`Losses: ${result.winCounts.p2}`);
-console.log(`Ties: ${result.winCounts.ties}`);
+console.log('\n=== トレーニング完了 ===');
+console.log(`総エピソード数: ${result.episodes.length}`);
+console.log(`勝率: ${(result.finalStats.p1WinRate * 100).toFixed(1)}%`);
+console.log(`平均スコア: ${result.finalStats.avgP1Score.toFixed(0)}`);
+console.log(`\n勝利: ${result.winCounts.p1}`);
+console.log(`敗北: ${result.winCounts.p2}`);
+console.log(`引き分け: ${result.winCounts.ties}`);
 
-// Save the trained agent
+// トレーニング済みエージェントを保存
 import fs from 'fs';
 const agentData = result.learningAgent.toJSON();
 fs.writeFileSync('trained_agent.json', JSON.stringify(agentData, null, 2));
-console.log('\n✓ Agent saved to trained_agent.json');
+console.log('\n✓ エージェントをtrained_agent.jsonに保存しました');
 ```
 
-### 2. Run It
+### 2. 実行
 
 ```bash
 npx tsx examples/train_strategic.ts
 ```
 
-You should see output like:
+次のような出力が表示されます：
 
 ```
-Starting strategic learning training...
+戦略的学習トレーニングを開始します...
 
 [Episode 50/100] Recent win rate: 45.0% | Stage: Novice | ε_action: 0.095 | ε_strategy: 0.285
 [Episode 100/100] Recent win rate: 62.0% | Stage: Beginner | ε_action: 0.090 | ε_strategy: 0.271
 
-=== Training Complete ===
-Total Episodes: 100
-Win Rate: 58.0%
-Average Score: 12543
+=== トレーニング完了 ===
+総エピソード数: 100
+勝率: 58.0%
+平均スコア: 12543
 
-Wins: 58
-Losses: 40
-Ties: 2
+勝利: 58
+敗北: 40
+引き分け: 2
 
-✓ Agent saved to trained_agent.json
+✓ エージェントをtrained_agent.jsonに保存しました
 ```
 
-## Understanding the Output
+## 出力の理解
 
-### Training Progress
+### トレーニング進捗
 
-- **Episode**: Current episode number
-- **Recent win rate**: Win rate over last 50 episodes
-- **Stage**: Current curriculum difficulty level
-- **ε_action**: Exploration rate for move selection (lower = more deterministic)
-- **ε_strategy**: Exploration rate for strategy selection
+- **Episode**: 現在のエピソード番号
+- **Recent win rate**: 直近50エピソードの勝率
+- **Stage**: 現在のカリキュラム難易度レベル
+- **ε_action**: 手選択の探索率（低いほど決定論的）
+- **ε_strategy**: 戦略選択の探索率
 
-### Final Statistics
+### 最終統計
 
-- **Win Rate**: Percentage of games won against opponents
-- **Average Score**: Mean score across all episodes
-- **Wins/Losses/Ties**: Game outcomes
+- **Win Rate**: 対戦相手に対する勝率
+- **Average Score**: 全エピソードの平均スコア
+- **Wins/Losses/Ties**: ゲーム結果
 
-## Analyzing Performance
+## パフォーマンスの分析
 
-### View Strategy Performance
+### 戦略パフォーマンスを表示
 
 ```typescript
 import { LearnableStrategicAgent } from '../src/ai/learnable_strategic_agent';
 import fs from 'fs';
 
-// Load trained agent
+// トレーニング済みエージェントを読み込み
 const agent = new LearnableStrategicAgent();
 const data = JSON.parse(fs.readFileSync('trained_agent.json', 'utf-8'));
 agent.fromJSON(data);
 
-// Get performance stats
+// パフォーマンス統計を取得
 const tracker = agent.getPerformanceTracker();
 const performance = tracker.getAllPerformance();
 
-console.log('\n=== Strategy Performance ===\n');
+console.log('\n=== 戦略パフォーマンス ===\n');
 
 for (const [strategy, stats] of performance) {
   if (stats.timesUsed > 0) {
     console.log(`${strategy}:`);
-    console.log(`  Times Used: ${stats.timesUsed}`);
-    console.log(`  Win Rate: ${(stats.winRate * 100).toFixed(1)}%`);
-    console.log(`  Avg Score: ${stats.averageScore.toFixed(0)}`);
-    console.log(`  Avg Garbage: ${stats.averageGarbageSent.toFixed(1)}`);
-    console.log(`  Avg Reward: ${stats.averageReward.toFixed(1)}`);
+    console.log(`  使用回数: ${stats.timesUsed}`);
+    console.log(`  勝率: ${(stats.winRate * 100).toFixed(1)}%`);
+    console.log(`  平均スコア: ${stats.averageScore.toFixed(0)}`);
+    console.log(`  平均ガベージ: ${stats.averageGarbageSent.toFixed(1)}`);
+    console.log(`  平均報酬: ${stats.averageReward.toFixed(1)}`);
     console.log('');
   }
 }
 ```
 
-Example output:
+出力例：
 
 ```
-=== Strategy Performance ===
+=== 戦略パフォーマンス ===
 
 B2B_PRESSURE:
-  Times Used: 145
-  Win Rate: 68.5%
-  Avg Score: 18432
-  Avg Garbage: 12.3
-  Avg Reward: 245.7
+  使用回数: 145
+  勝率: 68.5%
+  平均スコア: 18432
+  平均ガベージ: 12.3
+  平均報酬: 245.7
 
 DEFENSE_CANCEL:
-  Times Used: 87
-  Win Rate: 52.3%
-  Avg Score: 8234
-  Avg Garbage: 5.1
-  Avg Reward: 123.4
+  使用回数: 87
+  勝率: 52.3%
+  平均スコア: 8234
+  平均ガベージ: 5.1
+  平均報酬: 123.4
 
 CHEESE_FARMING:
-  Times Used: 63
-  Win Rate: 71.2%
-  Avg Score: 21543
-  Avg Garbage: 15.8
-  Avg Reward: 312.1
+  使用回数: 63
+  勝率: 71.2%
+  平均スコア: 21543
+  平均ガベージ: 15.8
+  平均報酬: 312.1
 ```
 
-## Advanced Usage
+## 高度な使用方法
 
-### Custom Training Configuration
+### カスタムトレーニング設定
 
 ```typescript
 const result = runStrategicVersusTraining({
-  // Training duration
+  // トレーニング期間
   totalEpisodes: 500,
   maxStepsPerEpisode: 2000,
 
-  // Learning parameters
-  actionLearningRate: 0.001,      // How fast to learn moves
-  strategyLearningRate: 0.01,     // How fast to learn strategies
-  gamma: 0.95,                    // Discount future rewards
+  // 学習パラメータ
+  actionLearningRate: 0.001,      // 手の学習速度
+  strategyLearningRate: 0.01,     // 戦略の学習速度
+  gamma: 0.95,                    // 将来の報酬を割引
 
-  // Exploration
-  initialActionExploration: 0.1,   // Random move chance
-  initialStrategyExploration: 0.3, // Random strategy chance
+  // 探索
+  initialActionExploration: 0.1,   // ランダムな手の確率
+  initialStrategyExploration: 0.3, // ランダムな戦略の確率
 
-  // Curriculum
-  useCurriculum: true,            // Progressive difficulty
+  // カリキュラム
+  useCurriculum: true,            // 段階的難易度
 
-  // Misc
-  seedBase: Date.now(),           // Random seed
-  verbose: true,                  // Logging
-  saveInterval: 100,              // Save every N episodes
+  // その他
+  seedBase: Date.now(),           // ランダムシード
+  verbose: true,                  // ログ出力
+  saveInterval: 100,              // N エピソードごとに保存
 });
 ```
 
-### GPU Acceleration (Future)
+### GPU加速（将来）
 
 ```typescript
 import { initializeGPU } from '../src/config/gpu_config';
 
-// Initialize GPU
+// GPUを初期化
 const gpuInit = initializeGPU({
-  backend: 'cuda',  // or 'rocm', 'metal', 'cpu'
+  backend: 'cuda',  // または 'rocm', 'metal', 'cpu'
   deviceId: 0,
   batchSize: 64,
   memoryFraction: 0.8,
 });
 
 console.log(gpuInit.message);
-// "Initialized CUDA backend on device 0"
+// "CUDA バックエンドをデバイス0で初期化しました"
 ```
 
-*Note: GPU acceleration is currently a placeholder for future neural network support.*
+*注: GPU加速は現在、将来のニューラルネットワークサポートのためのプレースホルダーです。*
 
-### Resume Training
+### トレーニングの再開
 
 ```typescript
 import { LearnableStrategicAgent } from '../src/ai/learnable_strategic_agent';
 import { CurriculumProgress } from '../src/training/curriculum';
 import fs from 'fs';
 
-// Load previous agent and curriculum
+// 以前のエージェントとカリキュラムを読み込み
 const agent = new LearnableStrategicAgent();
 agent.fromJSON(JSON.parse(fs.readFileSync('trained_agent.json', 'utf-8')));
 
 const curriculum = new CurriculumProgress();
 curriculum.fromJSON(JSON.parse(fs.readFileSync('curriculum.json', 'utf-8')));
 
-// Continue training...
-// (would need to modify training loop to accept pre-trained agent)
+// トレーニングを続行...
+// (トレーニングループを修正して事前トレーニング済みエージェントを受け入れる必要があります)
 ```
 
-## Curriculum Stages
+## カリキュラムステージ
 
-The agent will automatically progress through these stages:
+エージェントは自動的にこれらのステージを進行します：
 
-| Stage | Opponent Difficulty | Target Win Rate |
-|-------|---------------------|-----------------|
-| 🟢 Novice | Very Easy | 70% |
-| 🟡 Beginner | Easy | 65% |
-| 🟠 Intermediate | Medium | 60% |
-| 🔴 Advanced | Hard | 55% |
-| ⚫ Expert | Very Hard | 50% |
+| ステージ | 対戦相手の難易度 | 目標勝率 |
+|---------|----------------|---------|
+| 🟢 初心者 | とても簡単 | 70% |
+| 🟡 中級者 | 簡単 | 65% |
+| 🟠 中上級 | 普通 | 60% |
+| 🔴 上級者 | 難しい | 55% |
+| ⚫ エキスパート | とても難しい | 50% |
 
-The agent advances when it achieves the target win rate and completes minimum episodes.
+エージェントは目標勝率を達成し、最小エピソード数を完了すると進級します。
 
-## Tips for Best Results
+## 最良の結果を得るためのヒント
 
-### 1. Start Small
+### 1. 小さく始める
 
 ```typescript
-// Good for initial testing
+// 初期テストに適しています
 totalEpisodes: 100,
 maxStepsPerEpisode: 1000,
 ```
 
-### 2. Use Curriculum
+### 2. カリキュラムを使用
 
 ```typescript
-// Highly recommended
+// 強く推奨
 useCurriculum: true,
 ```
 
-Curriculum learning helps the agent learn faster by starting with easy opponents.
+カリキュラム学習は、簡単な対戦相手から始めることで、エージェントがより速く学習するのに役立ちます。
 
-### 3. Monitor Exploration Rates
+### 3. 探索率を監視
 
-If win rate plateaus, check exploration:
+勝率が停滞している場合は、探索をチェックしてください：
 
 ```typescript
 console.log(`Action ε: ${agent.getConfig().actionExplorationRate}`);
 console.log(`Strategy ε: ${agent.getStrategySelector().getEpsilon()}`);
 ```
 
-Too high = too random. Too low = no exploration.
+高すぎる = ランダムすぎる。低すぎる = 探索不足。
 
-### 4. Save Checkpoints
+### 4. チェックポイントを保存
 
 ```typescript
-// Save every 100 episodes
+// 100エピソードごとに保存
 if (episodeNum % 100 === 0) {
   fs.writeFileSync(
     `agent_episode_${episodeNum}.json`,
@@ -273,9 +273,9 @@ if (episodeNum % 100 === 0) {
 }
 ```
 
-### 5. Analyze Strategy Usage
+### 5. 戦略使用状況を分析
 
-Look for imbalanced strategy usage:
+不均衡な戦略使用を探します：
 
 ```typescript
 const stats = tracker.getAllPerformance();
@@ -284,69 +284,69 @@ const maxUsage = Math.max(...usageCounts);
 const minUsage = Math.min(...usageCounts.filter(c => c > 0));
 
 if (maxUsage / minUsage > 10) {
-  console.warn('⚠️  Strategy usage is very imbalanced');
-  console.log('Consider increasing strategy exploration');
+  console.warn('⚠️  戦略使用が非常に不均衡です');
+  console.log('戦略探索を増やすことを検討してください');
 }
 ```
 
-## Common Issues
+## よくある問題
 
-### "Win rate not improving"
+### "勝率が向上しない"
 
-**Cause**: Learning rates may be too high or low
+**原因**: 学習率が高すぎるか低すぎる可能性
 
-**Fix**:
+**修正**:
 ```typescript
-actionLearningRate: 0.0005,    // Try halving
-strategyLearningRate: 0.005,   // Try halving
+actionLearningRate: 0.0005,    // 半分に
+strategyLearningRate: 0.005,   // 半分に
 ```
 
-### "Agent uses only one strategy"
+### "エージェントが1つの戦略しか使わない"
 
-**Cause**: Insufficient exploration
+**原因**: 探索不足
 
-**Fix**:
+**修正**:
 ```typescript
-initialStrategyExploration: 0.5,  // Increase from 0.3
+initialStrategyExploration: 0.5,  // 0.3から増やす
 ```
 
-### "Training very slow"
+### "トレーニングが非常に遅い"
 
-**Cause**: Episodes too long or too many
+**原因**: エピソードが長すぎるか多すぎる
 
-**Fix**:
+**修正**:
 ```typescript
-maxStepsPerEpisode: 500,     // Reduce from 2000
-totalEpisodes: 200,          // Start smaller
+maxStepsPerEpisode: 500,     // 2000から削減
+totalEpisodes: 200,          // より小さく始める
 ```
 
-### "Out of memory"
+### "メモリ不足"
 
-**Cause**: Too much episode history stored
+**原因**: エピソード履歴が多すぎて保存されている
 
-**Fix**: Clear history periodically:
+**修正**: 定期的に履歴をクリア：
 ```typescript
 if (episodeNum % 100 === 0) {
   agent.clearDecisionHistory();
 }
 ```
 
-## Next Steps
+## 次のステップ
 
-1. **Read the full documentation**: `docs/STRATEGIC_LEARNING.md`
-2. **Experiment with parameters**: Try different learning rates and exploration
-3. **Visualize training**: Plot win rates over episodes
-4. **Compare agents**: Train multiple agents with different settings
-5. **Contribute**: Share your findings and improvements!
+1. **完全なドキュメントを読む**: `docs/STRATEGIC_LEARNING.md`
+2. **パラメータを試す**: 異なる学習率と探索を試す
+3. **トレーニングを可視化**: エピソードごとの勝率をプロット
+4. **エージェントを比較**: 異なる設定で複数のエージェントをトレーニング
+5. **貢献する**: あなたの発見と改善を共有してください！
 
-## Example: Complete Training Script
+## 例: 完全なトレーニングスクリプト
 
 ```typescript
 import { runStrategicVersusTraining } from '../src/training/strategic_versus_engine';
 import fs from 'fs';
 
 async function main() {
-  console.log('🎮 TetrisAI Strategic Learning\n');
+  console.log('🎮 TetrisAI 戦略的学習\n');
 
   const result = runStrategicVersusTraining({
     totalEpisodes: 500,
@@ -354,29 +354,29 @@ async function main() {
     verbose: true,
   });
 
-  // Save results
+  // 結果を保存
   fs.writeFileSync('agent.json', JSON.stringify(result.learningAgent.toJSON(), null, 2));
 
   if (result.curriculumProgress) {
     fs.writeFileSync('curriculum.json', JSON.stringify(result.curriculumProgress.toJSON(), null, 2));
   }
 
-  // Summary
-  console.log('\n📊 Training Summary:');
-  console.log(`Episodes: ${result.episodes.length}`);
-  console.log(`Win Rate: ${(result.finalStats.p1WinRate * 100).toFixed(1)}%`);
-  console.log(`Avg Score: ${result.finalStats.avgP1Score.toFixed(0)}`);
+  // サマリー
+  console.log('\n📊 トレーニングサマリー:');
+  console.log(`エピソード数: ${result.episodes.length}`);
+  console.log(`勝率: ${(result.finalStats.p1WinRate * 100).toFixed(1)}%`);
+  console.log(`平均スコア: ${result.finalStats.avgP1Score.toFixed(0)}`);
 
   if (result.curriculumProgress) {
     const stats = result.curriculumProgress.getStats();
-    console.log(`Final Stage: ${stats.currentStage}`);
-    console.log(`Overall Progress: ${(stats.overallProgress * 100).toFixed(1)}%`);
+    console.log(`最終ステージ: ${stats.currentStage}`);
+    console.log(`全体進捗: ${(stats.overallProgress * 100).toFixed(1)}%`);
   }
 
-  console.log('\n✅ Training complete!');
+  console.log('\n✅ トレーニング完了！');
 }
 
 main().catch(console.error);
 ```
 
-Happy training! 🚀
+楽しいトレーニングを！🚀
