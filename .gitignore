@@ -31,3 +31,8 @@ Thumbs.db
 
 # Training artifacts
 weights*.json
+# Trained agents
+*.json
+!package.json
+!package-lock.json
+!tsconfig.json

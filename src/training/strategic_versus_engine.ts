@@ -343,8 +343,11 @@ function runStrategicMatch(
         break; // No valid moves
       }
 
-      // Execute action
-      environment.step(playerIndex, () => decision.action);
+      // Execute action - the actor function must apply the game state from the decision
+      environment.step(playerIndex, (g) => {
+        g.copyFrom(decision.action.game);
+        return decision.action;
+      });
 
       // Get state after action
       const statsAfter = game.getStats();
