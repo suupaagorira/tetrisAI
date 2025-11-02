@@ -36,3 +36,8 @@ weights*.json
 !package.json
 !package-lock.json
 !tsconfig.json
+
+# Examples build artifacts
+examples/*.js
+examples/*.d.ts
+examples/*.map
