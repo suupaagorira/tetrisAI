@@ -33,8 +33,10 @@
     "tests",
     "dist",
     "vitest.config.ts",
+    "examples",
     "src/gui/client.ts",
     "src/gui/versus_client.ts",
-    "src/gui/strategic_client.ts"
+    "src/gui/strategic_client.ts",
+    "src/gui/strategic_training_client.ts"
   ]
 }

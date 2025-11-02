@@ -74,6 +74,14 @@ export class LinearEvaluator {
     return { ...this.weights };
   }
 
+  getBias(): number {
+    return this.bias;
+  }
+
+  setBias(bias: number): void {
+    this.bias = bias;
+  }
+
   setWeights(weights: Record<string, number>): void {
     this.weights = { ...weights };
   }

@@ -5,7 +5,7 @@ export interface FeatureVector {
   readonly values: Record<string, number>;
 }
 
-interface ColumnMetrics {
+export interface ColumnMetrics {
   heights: number[];
   holes: number;
   wellDepth: number;
@@ -67,7 +67,7 @@ export function computeFeatures(
   return { values };
 }
 
-function collectVisibleRows(board: MatrixBoard): number[][] {
+export function collectVisibleRows(board: MatrixBoard): number[][] {
   const rows: number[][] = [];
   for (let y = STANDARD_BOARD.hiddenRows; y < board.height; y += 1) {
     rows.push([...board.cells[y]!]);
@@ -89,7 +89,7 @@ function countGaps(rows: number[][]): number {
   }
   return gaps;
 }
-function analyzeColumns(rows: number[][]): ColumnMetrics {
+export function analyzeColumns(rows: number[][]): ColumnMetrics {
   const width = rows[0]?.length ?? 0;
   const heights = new Array<number>(width).fill(0);
   const columnTransitionsPerColumn = new Array<number>(width).fill(0);
@@ -230,7 +230,7 @@ function computeSurfaceRoughness(heights: number[]): number {
  * Detect T-Spin setup opportunities
  * Looks for patterns where a T-piece could fit with rotation
  */
-function detectTSpinOpportunities(rows: number[][], heights: number[]): number {
+export function detectTSpinOpportunities(rows: number[][], heights: number[]): number {
   let opportunities = 0;
   const width = rows[0]?.length ?? 0;
 
