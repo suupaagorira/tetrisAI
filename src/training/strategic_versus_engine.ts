@@ -385,6 +385,9 @@ function runStrategicMatch(
       // Record decision and reward
       agent.recordReward(rewardBreakdown.total);
 
+      // Store reward in decision for later learning updates
+      decision.reward = rewardBreakdown.total;
+
       if (playerIndex === 0) {
         decisionsP1.push(decision);
         snapshotsP1.push(snapshotAfter);
@@ -502,9 +505,11 @@ function updateAgentFromEpisode(
   let G = 0;
 
   for (let t = decisions.length - 1; t >= 0; t--) {
+    const decision = decisions[t]!;
+    const reward = decision.reward ?? 0;
+
     // G = reward_t + gamma * G
-    // Note: rewards are already recorded in the agent
-    G = gamma * G; // Simplified since rewards are tracked separately
+    G = reward + gamma * G;
     returns[t] = G;
   }
 
@@ -521,32 +526,35 @@ function updateAgentFromEpisode(
   }
 
   // Update strategy-level Q-functions
-  for (let t = 0; t < decisions.length - 1; t++) {
+  // Group decisions by strategy to aggregate rewards per strategy use
+  let strategyStartIndex = 0;
+  for (let t = 0; t < decisions.length; t++) {
     const current = decisions[t]!;
-    const next = decisions[t + 1]!;
+    const isLastDecision = t === decisions.length - 1;
+    const strategyChanged = !isLastDecision && decisions[t + 1]!.strategy !== current.strategy;
 
-    // Q-learning update for strategy selection
-    // Reward is the cumulative reward from using this strategy
-    const strategyReward = 0; // Would need to aggregate from recorded rewards
+    // When strategy changes or episode ends, update Q-value for the strategy
+    if (strategyChanged || isLastDecision) {
+      // Aggregate rewards from all decisions using this strategy
+      let strategyReward = 0;
+      for (let i = strategyStartIndex; i <= t; i++) {
+        strategyReward += decisions[i]!.reward ?? 0;
+      }
 
-    agent.updateStrategySelector(
-      current.state,
-      current.strategy,
-      strategyReward,
-      next.state,
-      false
-    );
-  }
+      // Get next state (either next decision's state or terminal state)
+      const nextState = isLastDecision ? current.state : decisions[t + 1]!.state;
+      const isTerminal = isLastDecision;
 
-  // Update final decision
-  if (decisions.length > 0) {
-    const final = decisions[decisions.length - 1]!;
-    agent.updateStrategySelector(
-      final.state,
-      final.strategy,
-      0,
-      final.state, // Terminal state
-      true
-    );
+      agent.updateStrategySelector(
+        current.state,
+        current.strategy,
+        strategyReward,
+        nextState,
+        isTerminal
+      );
+
+      // Move to next strategy segment
+      strategyStartIndex = t + 1;
+    }
   }
 }
